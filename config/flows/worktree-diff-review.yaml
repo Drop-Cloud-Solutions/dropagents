@@ -1,0 +1,20 @@
+# AP-IFG-005 — lifecycle flow: worktree-diff-review
+#
+# Read-only operator surface that renders the worktree diff for inline
+# approval before commit (analogous to v1's /api/worker/worktree-diff
+# routes). The host bridges the developer's diff-ready signal into a
+# TaskCreated for this flow; start_mode: auto lets the engine enter the
+# review step without a second operator approval gate.
+#
+# The `worktree-diff-review` stage parks the task (TaskParked
+# reason=wait-action) so the board can subscribe to the parked event and
+# render the diff snapshot inline. When the operator approves via
+# ResumeTask, on_success fires and WorktreeDiffApproved lands on the bus
+# for the downstream commit flow to consume.
+on: TaskCreated
+start_mode: auto
+steps:
+  - id: review
+    agent: worktree-diff-review
+    model: none
+    on_success: emit:WorktreeDiffApproved

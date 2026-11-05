@@ -1,0 +1,53 @@
+# Parity fixture — task_type: deploy-azure
+#
+# See implement.yaml for the fixture-format contract.
+
+task_type: deploy-azure
+reference_sha: b50868495fb778dc3058e15c2501cba410a59dac
+status: green
+owner: track-5
+
+description: >
+  Azure resource deployment (App Service, Function App, container apps,
+  etc.). v1 invokes the deployer agent with the project's azure_scope
+  metadata, then chains a deploy-verify task to assert the deployment
+  is healthy before TaskFinished.
+
+expected_events:
+  - PlanApproved
+  - TaskCreated
+  - TaskApproved
+  - AgentStarted     # deployer
+  - AgentFinished    # deployer
+  - TaskFinished
+
+retained: true
+notes: |
+  Replaces the cut deploy-nuget task type. Azure deployments stay; package
+  publishes are out-of-scope for core (see the Cut list in
+  test/parity/fixtures/README.md).
+
+  Exercised end-to-end by scripts/parity-smoke.ts's `deploy-azure`
+  round-trip (runDeployAzureRoundTrip — AP-IFW-005 Track 5). The v2 flow
+  (`config/flows/deploy-azure.yaml`) routes through two pass-through
+  primitives (`run-script` then `verify`) so the engine itself emits no
+  AgentStarted/AgentFinished pairs — the host wrap captures those on the
+  TaskApproved hook (`.agent-stream.jsonl`) and writes the deploy stdout
+  (`deploy_sandbox.ps1.stdout`) alongside the pid/.killed sidecars.
+
+  SAFETY: `deploy-azure` mutates Azure resources. The harness REFUSES TO
+  PROCEED when `PARITY_SMOKE_AZURE_SCOPE` is unset — by default it skips
+  cleanly so CI on hosts without Azure credentials still exits 0; CI
+  runners that mandate the live deploy set `PARITY_SMOKE_REQUIRE_AZURE=1`
+  to convert the skip into a hard failure. If the resolved scope is
+  production-shaped (matches /prod|production/i, or omits a
+  sandbox/sbx/dev/test token) the harness FAILS IMMEDIATELY rather than
+  honouring an operator typo. The pinned sandbox subscription id and
+  resource group are documented inline in the round-trip function and
+  live alongside REFERENCE_BASELINE as part of the v1 oracle snapshot.
+
+  Assertions cover the three observable surfaces named in AP-IFW-005
+  Track 5: deploy script stdout (DEPLOY-SUCCESS marker + subscription
+  echo), agent-stream completion (deployer + verifier started/finished
+  pairs in `.agent-stream.jsonl`), and sidecar markers (per-task pid +
+  .killed under the sidecar dir).

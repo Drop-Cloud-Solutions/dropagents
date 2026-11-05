@@ -1,0 +1,24 @@
+-- 037_repo_github_account — which GitHub account a repo is reached with.
+--
+-- The operator has a second GitHub account for repositories the first
+-- cannot see. `github_accounts:` in pipeline.yaml declares the accounts
+-- (see core/config/github-accounts.ts); this column is the mapping that
+-- says which one a given repo uses.
+--
+-- NULLABLE, and null is the default for every existing row on purpose.
+-- Null means "the machine's ambient gh identity" — exactly what every
+-- repo used before accounts existed — so this migration changes the
+-- behaviour of nothing. An operator opts a repo in by picking an
+-- account for it, one repo at a time, and can see on the board which
+-- ones are still on the default.
+--
+-- Deliberately NOT a foreign key to a table of accounts. Accounts live
+-- in a config file that the operator can edit by hand or that a profile
+-- can replace wholesale; a referential constraint against that would
+-- mean editing the YAML could fail a database write, or that removing an
+-- account became impossible while any repo still named it. Instead an
+-- id that no longer resolves degrades to the ambient identity
+-- (resolveGitHubEnv returns an empty overlay for an unknown id) and the
+-- board shows the repo as unmapped. A dangling reference is visible and
+-- harmless; a constraint would be neither.
+ALTER TABLE repos ADD COLUMN github_account TEXT;

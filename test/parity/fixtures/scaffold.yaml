@@ -1,0 +1,34 @@
+# Parity fixture — task_type: scaffold
+#
+# See implement.yaml for the fixture-format contract.
+
+task_type: scaffold
+reference_sha: b50868495fb778dc3058e15c2501cba410a59dac
+status: green
+owner: track-0
+
+description: >
+  Net-new file/module creation. v1 drives developer → reviewer → tester
+  → committer with the developer writing the initial artifacts. The
+  parity-smoke harness's scaffold round-trip (scripts/parity-smoke.ts)
+  asserts on the file-write side-effects landing on disk via a sandbox
+  project directory.
+
+expected_events:
+  - PlanApproved
+  - TaskCreated
+  - TaskApproved
+  - AgentStarted     # developer
+  - AgentFinished    # developer
+  - AgentStarted     # reviewer
+  - AgentFinished    # reviewer
+  - AgentStarted     # tester
+  - AgentFinished    # tester
+  - AgentStarted     # committer
+  - AgentFinished    # committer
+  - TaskFinished
+
+retained: true
+notes: |
+  Already exercised end-to-end by scripts/parity-smoke.ts's scaffold
+  round-trip — this fixture marks the spec as covered (status: green).

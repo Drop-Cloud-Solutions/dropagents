@@ -1,0 +1,17 @@
+{
+    "$comment": "Board parity fixture (AP-IFW-010 / Track 9). Single plan with one task per v1 lifecycle column. Both v1 and v2 boards are driven against this fixture by test/parity/board/board-parity.spec.ts, which compiles `tasks[*].column` into the minimal event sequence (PlanApproved → TaskCreated → TaskApproved → AgentStarted with role-per-column) that lands each task in its target column. Adding or reordering columns here requires a matching update to the spec's role-by-column map.",
+    "plan": {
+        "planId": "demo-plan-001",
+        "projectId": "demo-project",
+        "title": "Board parity demo plan"
+    },
+    "tasks": [
+        { "taskId": "T-001", "type": "implement",        "title": "Created task",      "column": "created"     },
+        { "taskId": "T-002", "type": "implement",        "title": "Approved task",     "column": "approved"    },
+        { "taskId": "T-003", "type": "implement",        "title": "In-progress task",  "column": "in_progress" },
+        { "taskId": "T-004", "type": "implement",        "title": "Review task",       "column": "review"      },
+        { "taskId": "T-005", "type": "integration-test", "title": "Test task",         "column": "test"        },
+        { "taskId": "T-006", "type": "implement",        "title": "Commit task",       "column": "commit"      },
+        { "taskId": "T-007", "type": "implement",        "title": "Merge task",        "column": "merge"       }
+    ]
+}

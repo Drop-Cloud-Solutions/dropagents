@@ -1,0 +1,15 @@
+-- 026_requirement_project — Architect Tier: requirements belong to a project.
+--
+-- The architect fans a requirement out into one plan per system, and those
+-- plans must land under a real BOARD project (the `projects` projection) so
+-- the board's project filter, grouping, and archive affordances work.
+-- Previously the fan-out used the systemId (a repo id) as the plan's
+-- projectId, which matches no project — the plans rendered nowhere and
+-- could not be driven through their lifecycle.
+--
+-- The project is chosen by the operator when submitting the requirement
+-- (RequirementSubmitted.projectId) and stamped here; the fan-out reads it
+-- back for every sub-plan. Nullable: pre-existing requirements (and any
+-- submitted without a project) fall back to DEFAULT_PROJECT_ID at fan-out
+-- time.
+ALTER TABLE requirements ADD COLUMN project_id TEXT;

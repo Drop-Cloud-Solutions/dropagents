@@ -1,0 +1,95 @@
+# Parity scenario — track 11: notifications
+#
+# Behavioural fixture: not a task-type round-trip. The contract here is
+# the seven-event notification vocabulary the pipeline emits and the
+# v1-parity icon set Telegram (and any future Slack / web-UI adapter)
+# renders. The brief mis-stated this as "nine" notification kinds — the
+# v1 surface is and always has been seven, mirrored in v2 by
+# `NotificationKinds` (core/ports/NotificationPort.ts) and verified
+# against `ICON_BY_KIND` in v1's chat-notify.ts at REFERENCE_BASELINE.
+#
+# Loaded by scripts/parity-smoke.ts (scenarios-tracks round-trip).
+# Drift between the kinds declared here and `ALL_NOTIFICATION_KINDS` in
+# core/ports/NotificationPort.ts surfaces as a red parity-smoke run.
+
+track: 11
+title: notifications — the v1 lifecycle vocabulary fires on the right events
+reference_sha: b50868495fb778dc3058e15c2501cba410a59dac
+status: green
+owner: track-11
+retained: true
+
+description: >
+  The pipeline emits a closed set of lifecycle notifications. Each kind
+  has a paired EventBus event with the same PascalCase name, a v1-parity
+  icon, and a default title. TelegramGateway subscribes to every event
+  on `start()` and routes through its own `send(kind, payload)` so a
+  host publishing `PlanReady` (etc.) reaches the operator without
+  calling the gateway directly.
+
+behavioral_assertions:
+  # Cross-checked against ALL_NOTIFICATION_KINDS in
+  # core/ports/NotificationPort.ts. Icon glyphs are pinned from v1
+  # chat-notify.ts (see TelegramGateway.notifications.test.ts AC #1).
+  notification_kinds:
+    - kind: PlanReady
+      icon: "📋"
+      default_title: Plan ready
+      context_field: planId
+    - kind: CommitReady
+      icon: "💾"
+      default_title: Commit ready
+      context_field: taskId
+    - kind: PrReady
+      icon: "🔀"
+      default_title: PR ready
+      context_field: taskId
+    - kind: DeployReady
+      icon: "🚀"
+      default_title: Deploy ready
+      context_field: taskId
+    - kind: InvestigationDone
+      icon: "🔍"
+      default_title: Investigation done
+      context_field: taskId
+    - kind: ContextUpdated
+      icon: "📝"
+      default_title: Context updated
+      context_field: taskId
+    - kind: WorkerError
+      icon: "🔥"
+      default_title: Worker error
+      context_field: error
+
+  invariants:
+    - >
+      Every kind's outbound text starts with the v1-parity icon glyph
+      followed by a space and the default (or caller-supplied) title.
+    - >
+      TelegramGateway.start() installs one EventBus subscriber per kind;
+      publishing `PlanReady` on the bus produces exactly one outbound
+      Telegram message (per allowed user id).
+    - >
+      `send(kind, payload)` is a no-op when the bot token is unset — the
+      gateway never throws, never queues, and the host stays operational
+      without Telegram credentials.
+    - >
+      Inline keyboard wiring is the concern of AP-IFG-015 (callback
+      parsing) and rides on top of these notification kinds; the port
+      itself stays transport-agnostic.
+
+notes: |
+  Brief-stated "nine" notification kinds resolved to seven on inspection
+  of the v1 chat-notify.ts vocabulary — see the description block in
+  core/ports/NotificationPort.ts for the full design rationale and the
+  per-kind payload contracts. If a ninth kind is ever added, this
+  fixture must grow accordingly; the parity-smoke harness will fail
+  loudly if the kinds drift.
+
+  Unit-level per-kind tests live in
+  adapters/telegram/TelegramGateway.notifications.test.ts (one
+  format-case per kind plus one end-to-end EventBus subscriber test per
+  kind). This scenario asserts the SHAPE of the vocabulary — that the
+  right kinds with the right glyphs are exported — so a structural
+  regression (someone drops `WorkerError` or renames `ContextUpdated`)
+  lights up parity-smoke.

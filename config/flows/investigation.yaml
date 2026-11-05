@@ -1,0 +1,7 @@
+on: InvestigationRequested
+steps:
+- id: investigator
+  agent: investigator
+  model: none
+  on_success: "emit:InvestigationCompleted"
+start_mode: auto

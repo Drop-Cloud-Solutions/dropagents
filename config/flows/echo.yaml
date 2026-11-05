@@ -1,0 +1,16 @@
+# AP-IFG-003 — start_mode derivation
+#   v1 task type: (none — `echo` is a v2-only smoke/demo flow with no v1
+#                 TYPE_PIPELINES counterpart; it exists to exercise the
+#                 minimal single-step path through the engine)
+#   v1 stages:    n/a
+#   start_mode:   auto — the echo agent has no side effects and no
+#                 operator gate; defaulting to `auto` keeps the smoke path
+#                 trivially dispatchable from TaskCreated.
+
+on: TaskApproved
+start_mode: auto
+steps:
+  - id: echo
+    agent: echo
+    model: none
+    on_success: emit:TaskFinished

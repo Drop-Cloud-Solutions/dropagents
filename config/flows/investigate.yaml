@@ -1,0 +1,21 @@
+on: TaskApproved
+when: "task.type == \"investigate\""
+# What this flow is as a task type (flow id == task type). The single
+# source for the per-type facts the pipeline used to hardcode in five
+# lists - see core/flow/task-types.ts.
+task_type:
+  label: "Investigate (report, no code changes)"
+  decomposable: true
+  writes_code: false
+  worktree: task
+  add_task: true
+  produces_report: true
+  chat_proposable: true
+  synonyms: [investigation, research, audit]
+steps:
+- id: investigator
+  agent: investigator
+  model: none
+  on_success: "emit:TaskFinished"
+  on_failure: "emit:TaskFailed"
+start_mode: auto

@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Pipeline Board</title>
+        <link
+            rel="preconnect"
+            href="https://fonts.googleapis.com"
+        />
+        <link
+            rel="preconnect"
+            href="https://fonts.gstatic.com"
+            crossorigin
+        />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="board.css" />
+        <script>
+            // Worker-api base URL. Empty string => same-origin (relative paths),
+            // which is the expected production deployment (reverse proxy maps
+            // /events and /commands to worker-api). Override at deploy time by
+            // editing this line or injecting a different value before board.js
+            // loads — e.g. for a dev setup where worker-api is on a separate
+            // origin and has CORS enabled, set this to 'http://localhost:4101'.
+            window.WORKER_API_BASE = '';
+        </script>
+    </head>
+    <body>
+        <!--
+          AP-IFF-001 v1 chrome. The body is a horizontal flex
+          shell (sidebar | main). The sidebar holds branding, the project
+          list, the context-update curator pane, the plan tree + live plan
+          stream, plus a footer with the live connection dot, the pending-
+          projections badge and the worker-log launcher. The main column
+          carries the header action bar and the existing seven-column
+          Kanban grid. #overlay-root and #toast-root are the structural
+          mount points for the panel / modal / toast layer; the wiring is
+          deferred to a later task and stays untouched by board.js today.
+        -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">DropAgents</div>
+                <div class="sidebar-sub">Pipeline Board</div>
+            </div>
+
+            <!--
+              Project sidebar (AP-IFG-012). Renders the list of
+              projects from GET /api/projects with an inline create
+              form and a per-row archive button. Selecting a project
+              drives the plan tree below it; the list is re-fetched
+              after every mutation so stale projection data never
+              surfaces.
+            -->
+            <section class="projects" id="projects-section" aria-label="Projects">
+                <h2>Projects</h2>
+                <div id="project-list-container" aria-live="polite"></div>
+            </section>
+
+            <!--
+              AP-IFG-022 context-update curator pane. Renders the
+              pending CLAUDE.md PR list from
+              GET /context-updates/pending with inline Run / Skip
+              buttons per task. Sits between the projects and plans
+              sections so the operator's "what needs my eyes right
+              now?" surface is the first thing in the sidebar.
+            -->
+            <section
+                class="context-updates"
+                id="context-updates-section"
+                aria-label="Pending context updates"
+            >
+                <h2>Context updates</h2>
+                <div id="context-updates-container" aria-live="polite"></div>
+            </section>
+
+            <!-- Plans previously lived here as a sidebar list under the
+                 selected project. They moved to the main board (the
+                 Draft / Progress / Completed / Archived plan sections)
+                 so the operator sees every plan's lifecycle status
+                 at a glance instead of having to drill into a project
+                 first. -->
+
+            <div class="sidebar-footer">
+                <!--
+                  Workspace repos modal trigger. Repos are a workspace-
+                  level resource (not per-project) — there are typically
+                  too many to render inline in the sidebar, so this
+                  button opens a dedicated management modal.
+                -->
+                <button
+                    type="button"
+                    id="open-repos-modal"
+                    class="sidebar-action-button"
+                    data-action="open-repos"
+                >
+                    Repositories
+                </button>
+                <div class="live-dot">
+                    <span id="connection-dot" class="dot" aria-hidden="true"></span>
+                    <span id="connection-label">connecting…</span>
+                </div>
+                <div
+                    id="pending-projections"
+                    class="pending-projections"
+                    hidden
+                    title="Tracker writes queued locally — Linear sink may be down"
+                ></div>
+                <button
+                    type="button"
+                    class="sidebar-action-button"
+                    id="open-chat-modal"
+                    data-action="open-chat"
+                >
+                    Chat
+                </button>
+                <button
+                    type="button"
+                    class="worker-log-launcher"
+                    id="worker-log-launcher"
+                >
+                    Worker log ⌕
+                </button>
+            </div>
+        </aside>
+
+        <main class="main">
+            <div class="main-header">
+                <div>
+                    <div class="proj-title" id="proj-title">Pipeline Board</div>
+                    <div class="proj-desc" id="proj-desc"></div>
+                </div>
+                <div class="header-right" id="header-actions"></div>
+            </div>
+
+            <div class="main-body">
+                <!--
+                  AP-PAO-007 v1 section-list scaffold. Replaces the legacy
+                  seven-column Kanban grid with a vertical list of
+                  semantic <section> elements that mirror v1's board
+                  layout: an Investigations strip at the top, then plan
+                  buckets grouped by status (Draft → Attention →
+                  Progress → Completed → Archived). Each section carries
+                  a stable id the TypeScript renderers target, a header
+                  with a count-badge placeholder, and a body slot the
+                  card renderers fill at runtime. The archived-plans
+                  section carries an expand/collapse toggle so the
+                  archive stays out of the way until the operator asks
+                  for it. No styling here — the CSS port lands in
+                  AP-PAO-008.
+                -->
+                <div class="section-list" data-section-list>
+                    <!-- Architect Tier (Phase 2): cross-system architectural designs.
+                         The board label is "Architectural design"; the events,
+                         tables and routes keep the `requirement` vocabulary. -->
+                    <section id="requirements-lane" data-section="requirements-lane" aria-label="Architectural designs">
+                        <header data-section-header>
+                            <h3>Architectural designs</h3>
+                            <span class="count-badge" data-count-badge></span>
+                            <button type="button" class="header-action" data-action="open-new-requirement">+ New architectural design</button>
+                        </header>
+                        <div class="section-body" data-section-body></div>
+                    </section>
+                    <section id="active-planners" data-section="active-planners" aria-label="Active planners">
+                        <header data-section-header>
+                            <h3>Active planners</h3>
+                            <span class="count-badge" data-count-badge></span>
+                        </header>
+                        <div class="section-body" data-section-body></div>
+                    </section>
+                    <section id="active-decomposers" data-section="active-decomposers" aria-label="Active decomposers">
+                        <header data-section-header>
+                            <h3>Active decomposers</h3>
+                            <span class="count-badge" data-count-badge></span>
+                        </header>
+                        <div class="section-body" data-section-body></div>
+                    </section>
+                    <section id="all-tasks" data-section="all-tasks" aria-label="Tasks">
+                        <header data-section-header>
+                            <h3>Tasks</h3>
+                            <span class="count-badge" data-count-badge></span>
+                            <button
+                                type="button"
+                                class="tasks-fold-all"
+                                data-fold-all-tasks
+                                title="Collapse or expand every plan's task group"
+                            >Collapse all</button>
+                        </header>
+                        <ul class="section-body task-list" data-section-body data-tasks></ul>
+                    </section>
+                    <!--
+                      Investigations placeholder slot. No renderer
+                      currently populates this section — investigation
+                      reports today live inside individual task cards
+                      (see [data-investigation] in the task-card
+                      template). The container stays in the DOM (so a
+                      future top-level investigations renderer can wire
+                      in via `toggleSectionVisible('investigations', …)`
+                      like every other board section) but ships
+                      `hidden` so the empty header doesn't add noise to
+                      the board surface.
+                    -->
+                    <section id="investigations" data-section="investigations" aria-label="Investigations" hidden>
+                        <header data-section-header>
+                            <h3>Investigations</h3>
+                            <span class="count-badge" data-count-badge></span>
+                        </header>
+                        <div class="section-body" data-section-body></div>
+                    </section>
+                    <section id="draft-plans" data-section="draft-plans" aria-label="Draft plans">
+                        <header data-section-header>
+                            <h3>Draft plans</h3>
+                            <span class="count-badge" data-count-badge></span>
+                        </header>
+                        <div class="section-body" data-section-body></div>
+                    </section>
+                    <section id="ready-plans" data-section="ready-plans" aria-label="Ready plans">
+                        <header data-section-header>
+                            <h3>Ready plans</h3>
+                            <span class="count-badge" data-count-badge></span>
+                        </header>
+                        <div class="section-body" data-section-body></div>
+                    </section>
+                    <section id="progress-plans" data-section="progress-plans" aria-label="Progress plans">
+                        <header data-section-header>
+                            <h3>Progress plans</h3>
+                            <span class="count-badge" data-count-badge></span>
+                        </header>
+                        <div class="section-body" data-section-body></div>
+                    </section>
+                    <section id="completed-plans" data-section="completed-plans" aria-label="Completed plans">
+                        <header data-section-header>
+                            <h3>Completed plans</h3>
+                            <span class="count-badge" data-count-badge></span>
+                        </header>
+                        <div class="section-body" data-section-body></div>
+                    </section>
+                    <section id="archived-plans" data-section="archived-plans" data-collapsed="true" aria-label="Archived plans">
+                        <header data-section-header>
+                            <h3>Archived plans</h3>
+                            <span class="count-badge" data-count-badge></span>
+                            <!--
+                              Search the archive by topic. Lives in the
+                              header so it is reachable while the section
+                              is collapsed; a non-empty query expands the
+                              section and bypasses the recency window,
+                              because searching an archive means "look at
+                              all of it". Project scoping is the board's
+                              existing filter - on a project page this
+                              searches that project only.
+                            -->
+                            <input
+                                type="search"
+                                class="archived-search"
+                                data-archived-search
+                                placeholder="Search archived plans…"
+                                aria-label="Search archived plans by title, brief or id"
+                                autocomplete="off"
+                            />
+                            <button
+                                type="button"
+                                data-archive-toggle
+                                aria-controls="archived-plans-body"
+                                aria-expanded="false"
+                            >
+                                Show archived
+                            </button>
+                        </header>
+                        <div
+                            class="section-body"
+                            id="archived-plans-body"
+                            data-section-body
+                            hidden
+                        ></div>
+                    </section>
+                    <section
+                        id="archived-requirements"
+                        data-section="archived-requirements"
+                        data-collapsed="true"
+                        aria-label="Archived architectural designs"
+                    >
+                        <header data-section-header>
+                            <h3>Archived architectural designs</h3>
+                            <span class="count-badge" data-count-badge></span>
+                            <button
+                                type="button"
+                                data-archive-toggle
+                                aria-controls="archived-requirements-body"
+                                aria-expanded="false"
+                            >
+                                Show archived
+                            </button>
+                        </header>
+                        <div
+                            class="section-body"
+                            id="archived-requirements-body"
+                            data-section-body
+                            hidden
+                        ></div>
+                    </section>
+                </div>
+            </div>
+        </main>
+
+        <!--
+          Overlay / panel mounting region. Modals (detail, agent stream,
+          diff review, reject, clarify, new-plan, worker-log, etc.) are
+          appended here by future board.js wiring. Empty on first paint.
+        -->
+        <div id="overlay-root" aria-live="polite"></div>
+
+        <!--
+          Toast layer. Transient notifications are appended here by
+          future board.js wiring. Empty on first paint.
+        -->
+        <div id="toast-root" aria-live="polite" aria-atomic="true"></div>
+
+        <template id="task-card-template">
+            <li class="task-card" data-task-card>
+                <div class="task-header">
+                    <span class="task-id" data-task-id></span>
+                    <!--
+                      AP-IFB-001 V1 parity slots. The priority dot,
+                      type-coloured badge, title row and meta row are
+                      populated by web/board-task-cards.ts (the typed
+                      source of truth) and by the matching board.js
+                      derivation. Order in the header mirrors v1:
+                      priority dot first, then the v1-styled type
+                      badge to the right of the task id.
+                    -->
+                    <span class="priority-dot" data-priority-dot aria-hidden="true"></span>
+                    <span class="type-badge" data-type-badge></span>
+                    <span class="task-type" data-task-type></span>
+                </div>
+                <div class="task-title" data-task-title></div>
+                <div class="task-body">
+                    <span class="task-plan" data-task-plan></span>
+                    <span class="parked-chip" data-parked-chip hidden></span>
+                </div>
+                <div class="task-meta" data-task-meta></div>
+                <ol class="stage-bar" data-stage-bar aria-label="Pipeline stage"></ol>
+                <section class="agent-stream" data-agent-stream hidden>
+                    <header class="agent-stream-header">
+                        <span class="agent-stream-label">Agent stream</span>
+                    </header>
+                    <ul class="agent-stream-tail" data-agent-stream-tail></ul>
+                </section>
+                <section class="task-investigation" data-investigation hidden>
+                    <header class="investigation-header">
+                        <span class="investigation-label">Investigation report</span>
+                        <span class="investigation-state" data-investigation-state></span>
+                    </header>
+                    <div class="investigation-report" data-investigation-report></div>
+                    <div class="investigation-actions" data-investigation-actions>
+                        <button type="button" data-action="implement-from-investigation">
+                            Implement
+                        </button>
+                        <button type="button" data-action="dismiss-investigation">
+                            Dismiss
+                        </button>
+                    </div>
+                </section>
+                <div class="task-actions">
+                    <button type="button" data-action="approve">Approve</button>
+                    <button type="button" data-action="skip">Skip</button>
+                    <button type="button" data-action="retry">Retry</button>
+                    <button type="button" data-action="create-pr" class="task-action-create-pr">Create PR</button>
+                    <button type="button" data-action="merge-pr" class="task-action-merge-pr">Merge PR</button>
+                    <button type="button" data-action="mark-complete" class="task-action-mark-complete">Mark complete</button>
+                    <button type="button" data-action="cancel" class="task-action-cancel">Cancel</button>
+                    <button type="button" data-action="dismiss" class="task-action-dismiss">Dismiss</button>
+                    <button type="button" data-action="resume" data-resume-action hidden>
+                        Resume
+                    </button>
+                </div>
+            </li>
+        </template>
+
+        <!--
+          AP-IFB-004 new-project modal template. The TypeScript module
+          (client/modals/new-project.ts) is the source of truth for what
+          actually renders at runtime — it builds the DOM dynamically the
+          same way client/modals/new-plan.ts does — but the static markup
+          below is registered here as a parallel reference so the modal's
+          structure (form fields + the seven V1 colour swatches) is
+          inspectable from index.html alongside the task-card / plan-card
+          templates. The seven swatch hex values mirror V1's
+          pipeline/board/board.html:186-192 verbatim.
+        -->
+        <template id="new-project-modal-template">
+            <section class="np-state np-state--ready" data-state-body="np-ready">
+                <h3 id="new-project-title">New project</h3>
+                <div class="form-row" data-row="title">
+                    <label class="form-label">Project title</label>
+                    <input data-input="name" type="text" placeholder="e.g. Shop" />
+                    <input data-input="abbr" type="text" placeholder="LDP" maxlength="4" />
+                </div>
+                <div class="form-row" data-row="id">
+                    <label class="form-label">Project ID (slug)</label>
+                    <input data-input="id" type="text" placeholder="shop" />
+                </div>
+                <div class="form-row" data-row="description">
+                    <label class="form-label">Description</label>
+                    <textarea data-input="description" placeholder="Brief description of the project"></textarea>
+                </div>
+                <div class="form-row" data-row="color">
+                    <label class="form-label">Color</label>
+                    <div class="color-swatches" data-swatches role="radiogroup" aria-label="Project color">
+                        <button type="button" class="color-swatch" data-swatch="#7c6af7" role="radio" aria-pressed="false" aria-label="Color #7c6af7"></button>
+                        <button type="button" class="color-swatch" data-swatch="#38bdf8" role="radio" aria-pressed="false" aria-label="Color #38bdf8"></button>
+                        <button type="button" class="color-swatch" data-swatch="#34d399" role="radio" aria-pressed="false" aria-label="Color #34d399"></button>
+                        <button type="button" class="color-swatch" data-swatch="#fbbf24" role="radio" aria-pressed="false" aria-label="Color #fbbf24"></button>
+                        <button type="button" class="color-swatch" data-swatch="#f87171" role="radio" aria-pressed="false" aria-label="Color #f87171"></button>
+                        <button type="button" class="color-swatch" data-swatch="#c084fc" role="radio" aria-pressed="false" aria-label="Color #c084fc"></button>
+                        <button type="button" class="color-swatch" data-swatch="#fb923c" role="radio" aria-pressed="false" aria-label="Color #fb923c"></button>
+                    </div>
+                </div>
+                <div class="form-row" data-row="repos">
+                    <label class="form-label">Repositories</label>
+                    <div class="repo-rows" data-repos></div>
+                    <button type="button" class="np-button" data-action="add-repo">+ Add repo</button>
+                </div>
+                <div class="np-footer">
+                    <button type="button" class="np-button" data-action="cancel">Cancel</button>
+                    <button type="button" class="np-button" data-action="submit">Create project</button>
+                </div>
+            </section>
+        </template>
+
+        <!--
+          AP-IFB-005 edit-project modal template. Mirrors the
+          new-project-modal-template above — same field set so the V1
+          form parity stays consistent between the create and edit
+          flows. The TypeScript module
+          (client/modals/edit-project.ts) is the source of truth for
+          what actually renders at runtime; it builds the DOM
+          dynamically the same way client/modals/new-project.ts does,
+          with each input pre-populated from the project passed in on
+          open(). The seven colour swatches are sourced from the
+          shared PROJECT_COLOR_SWATCHES constant so the two modals
+          can never drift on the V1 palette.
+        -->
+        <template id="edit-project-modal-template">
+            <section class="np-state np-state--ready" data-state-body="ep-ready">
+                <h3 id="edit-project-title">Edit project</h3>
+                <div class="form-row" data-row="title">
+                    <label class="form-label">Project title</label>
+                    <input data-input="name" type="text" placeholder="e.g. Shop" />
+                    <input data-input="abbr" type="text" placeholder="LDP" maxlength="4" />
+                </div>
+                <div class="form-row" data-row="id">
+                    <label class="form-label">Project ID (slug)</label>
+                    <input data-input="id" type="text" placeholder="shop" />
+                </div>
+                <div class="form-row" data-row="description">
+                    <label class="form-label">Description</label>
+                    <textarea data-input="description" placeholder="Brief description of the project"></textarea>
+                </div>
+                <div class="form-row" data-row="color">
+                    <label class="form-label">Color</label>
+                    <div class="color-swatches" data-swatches role="radiogroup" aria-label="Project color">
+                        <button type="button" class="color-swatch" data-swatch="#7c6af7" role="radio" aria-pressed="false" aria-label="Color #7c6af7"></button>
+                        <button type="button" class="color-swatch" data-swatch="#38bdf8" role="radio" aria-pressed="false" aria-label="Color #38bdf8"></button>
+                        <button type="button" class="color-swatch" data-swatch="#34d399" role="radio" aria-pressed="false" aria-label="Color #34d399"></button>
+                        <button type="button" class="color-swatch" data-swatch="#fbbf24" role="radio" aria-pressed="false" aria-label="Color #fbbf24"></button>
+                        <button type="button" class="color-swatch" data-swatch="#f87171" role="radio" aria-pressed="false" aria-label="Color #f87171"></button>
+                        <button type="button" class="color-swatch" data-swatch="#c084fc" role="radio" aria-pressed="false" aria-label="Color #c084fc"></button>
+                        <button type="button" class="color-swatch" data-swatch="#fb923c" role="radio" aria-pressed="false" aria-label="Color #fb923c"></button>
+                    </div>
+                </div>
+                <div class="form-row" data-row="repos">
+                    <label class="form-label">Repositories</label>
+                    <div class="repo-rows" data-repos></div>
+                    <button type="button" class="np-button" data-action="add-repo">+ Add repo</button>
+                </div>
+                <div class="np-footer">
+                    <button type="button" class="np-button" data-action="cancel">Cancel</button>
+                    <button type="button" class="np-button" data-action="submit">Save changes</button>
+                </div>
+            </section>
+        </template>
+
+        <!--
+          AP-IFB-007 review-report modal template. The TypeScript module
+          (client/modals/review-report.ts) is the source of truth for
+          what actually renders at runtime — it builds the DOM
+          dynamically the same way client/modals/new-plan.ts does — but
+          the static markup below is registered here as a parallel
+          reference point so the modal's structure (report body in a
+          <pre>, optional dismiss-reason textarea, and the three V1
+          actions: Close, Dismiss, Implement) is inspectable from
+          index.html alongside the task-card / plan-card / new-project
+          / edit-project templates. The dismiss/implement handlers and
+          report markup are ported from V1
+          pipeline/board/board.html:91-105.
+        -->
+        <template id="review-report-modal-template">
+            <section class="rr-state rr-state--ready" data-state-body="rr-ready">
+                <h3 id="review-report-title">Review report</h3>
+                <pre class="rr-report-content" data-report-content></pre>
+                <textarea
+                    class="rr-reason"
+                    data-input="reason"
+                    aria-label="Dismiss reason (optional)"
+                    placeholder="Dismiss reason (optional)"
+                ></textarea>
+                <div class="rr-footer">
+                    <button type="button" class="rr-button" data-action="close">Close</button>
+                    <button type="button" class="rr-button" data-action="dismiss">Dismiss</button>
+                    <button type="button" class="rr-button" data-action="implement">Implement</button>
+                </div>
+            </section>
+        </template>
+
+        <template id="plan-card-template">
+            <li class="plan-card" data-plan-card>
+                <div class="plan-header">
+                    <span class="plan-id" data-plan-id></span>
+                    <span class="plan-status" data-plan-status></span>
+                </div>
+                <!--
+                  AP-IFB-003 V1 parity slots. The title row, tech-stack
+                  tag container and conditional action button container
+                  are populated by web/board-plan-cards.ts (the typed
+                  source of truth) and by the matching board.js
+                  derivation. The actions slot is initially empty —
+                  the renderer fills it from derivePlanCardActions(plan)
+                  so the per-status conditional set ({Show agent,
+                  Review plan, Activate, Re-decompose, Delete}) lives
+                  in one place.
+                -->
+                <div class="plan-title" data-plan-title></div>
+                <div class="plan-meta">
+                    <span data-plan-project></span>
+                </div>
+                <div class="plan-tech-stack" data-plan-tech-stack aria-label="Tech stack"></div>
+                <ol class="stage-bar plan-stage-bar" data-plan-stage-bar aria-label="Plan progress"></ol>
+                <div class="plan-actions" data-plan-actions></div>
+            </li>
+        </template>
+
+        <!--
+          Mermaid — renders the plan modal's task dependency graph. Loaded
+          as a standalone `defer` script (kept out of the board.js esbuild
+          bundle so the main bundle stays lean); board.js reaches it lazily
+          via window.mermaid only when a plan modal opens, and falls back to
+          a text edge-list if this fails to load (offline / blocked CDN).
+          To run fully offline, vendor mermaid.min.js next to board.js and
+          point this src at it instead.
+        -->
+        <script
+            defer
+            src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"
+        ></script>
+        <script src="board.js"></script>
+    </body>
+</html>

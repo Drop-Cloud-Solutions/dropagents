@@ -1,0 +1,66 @@
+# AP-IFG-003 — start_mode derivation
+#   v1 task type: scaffold (TYPE_PIPELINES["scaffold"] = CLASSIC)
+#   v1 stages:    dev → review → test → commit → context-update
+#   start_mode:   auto — first stage `dev` runs without an operator gate.
+
+on: TaskApproved
+when: task.type == "scaffold"
+start_mode: auto
+# What this flow is as a task type (flow id == task type). The single
+# source for the per-type facts the pipeline used to hardcode in five
+# lists - see core/flow/task-types.ts.
+task_type:
+  label: "Scaffold"
+  decomposable: true
+  writes_code: true
+  worktree: task
+  add_task: false
+steps:
+  - id: develop
+    agent: developer
+    model: none
+    # Operator gate — matches the implement flow. Without this the
+    # scaffold task fires the developer the moment TaskApproved
+    # cascades from TaskCreated and the operator never sees an
+    # Approve/Skip choice.
+    approval: required
+    on_success: review
+  - id: review
+    agent: reviewer
+    model: none
+    on_success: test
+    # Reviewer failure routes back to develop with the rejection
+    # feedback threaded so the developer can address it. Without
+    # this the engine emits TaskFailed and the task is stuck dead.
+    on_failure: develop
+  - id: test
+    agent: tester
+    model: none
+    on_success: human-review
+    # Tester failure same story — re-drive develop with the failure
+    # report instead of dropping the task.
+    on_failure: develop
+  - id: human-review
+    # Mirrors the implement flow's pre-commit gate: parks the task
+    # until the operator inspects the developer's worktree diff and
+    # either Approves (advances to commit) or rejects with required
+    # feedback (routes back to develop with the note threaded as
+    # rejectFeedback). Sits AFTER the automated reviewer + tester so
+    # the operator only sees changes that already pass the agent
+    # chain's quality bar.
+    agent: worktree-diff-review
+    model: none
+    on_success: commit
+    on_failure: develop
+  - id: commit
+    agent: committer
+    model: none
+    on_success: merge
+    on_failure: develop
+  - id: merge
+    # Same merge-auto shape as implement.yaml — the post-commit hook
+    # opens a PR and the orchestrator merges it automatically; manual
+    # Merge PR remains the fallback.
+    agent: merge-auto
+    model: none
+    on_success: emit:TaskFinished

@@ -1,0 +1,37 @@
+# Parity fixture — task_type: document
+#
+# See implement.yaml for the fixture-format contract.
+
+task_type: document
+reference_sha: b50868495fb778dc3058e15c2501cba410a59dac
+status: green
+owner: track-4
+
+description: >
+  Documentation-only task. v1 routes through doc-writer → reviewer →
+  committer (no tester) and targets the docs repo declared for the
+  project, not the source repo.
+
+expected_events:
+  - PlanApproved
+  - TaskCreated
+  - TaskApproved
+  - AgentStarted     # doc-writer
+  - AgentFinished    # doc-writer
+  - AgentStarted     # reviewer
+  - AgentFinished    # reviewer
+  - AgentStarted     # committer
+  - AgentFinished    # committer
+  - TaskFinished
+
+retained: true
+notes: |
+  v2 flow is config/flows/document.yaml — `when: task.type == "document"`
+  drives a doc-writer → reviewer → committer chain with no tester stage.
+
+  Exercised end-to-end by scripts/parity-smoke.ts's `document` round-trip
+  (runDocumentRoundTrip). Assertions cover AC #2's three observable
+  surfaces named in AP-IFW-004 Track 4: the doc-writer agent stream
+  (the JSONL the board UI tails over SSE), the review outcome (the
+  reviewer step's REVIEW_NOTES.md), and the commit gate (the committer
+  step's COMMIT_MARKER, gated behind the reviewer's approval).

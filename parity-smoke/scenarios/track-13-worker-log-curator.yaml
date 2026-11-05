@@ -1,0 +1,93 @@
+# Parity scenario — track 13: worker log + curator UI
+#
+# Behavioural fixture: not a task-type round-trip. The contract here is
+# two operator-visible surfaces on the board-ui host:
+#
+#   1. The worker log (AP-IFG-021): the on-disk JSON-per-line log file
+#      tailed over SSE so the board renders a live log pane.
+#   2. The context-update curator (AP-IFG-022): the read-side projection
+#      of CLAUDE.md PRs awaiting operator action, plus the two
+#      run/skip command surfaces.
+#
+# Loaded by scripts/parity-smoke.ts (scenarios-tracks round-trip).
+
+track: 13
+title: worker log + curator UI
+reference_sha: b50868495fb778dc3058e15c2501cba410a59dac
+status: green
+owner: track-13
+retained: true
+
+description: >
+  Board-ui surfaces two operator-visible feeds: the worker log
+  (snapshot + SSE tail) and the context-update curator (pending
+  CLAUDE.md PRs the operator must run or skip). Both surfaces are bearer
+  authed against the same shared secret the rest of the board-ui uses.
+
+behavioral_assertions:
+  worker_log:
+    snapshot:
+      method: GET
+      path: /api/worker/log
+      auth: bearer
+      slice_query: since
+    sse_tail:
+      method: GET
+      path: /events/worker-log
+      auth: bearer
+      frame_kind: data
+    invariants:
+      - >
+        Each on-disk line is a single JSON entry — the same format
+        produced by adapters/logging/file-logger.ts. Tests assert that
+        line format verbatim, matching the v1 contract the later
+        worker-log-helpers.js port will rely on.
+      - >
+        SSE frames are emitted as the file grows; the `since` query on
+        the snapshot endpoint lets a reconnecting client resume from a
+        byte offset without re-reading the whole file.
+      - >
+        Both endpoints fail closed with 401 when the bearer is missing
+        or wrong; the response carries `WWW-Authenticate: Bearer`.
+
+  curator:
+    pending_read:
+      method: GET
+      path: /context-updates/pending
+      auth: bearer
+    run:
+      method: POST
+      path: /tasks/:tid/context-update/run
+      auth: bearer
+      command: RunContextUpdate
+    skip:
+      method: POST
+      path: /tasks/:tid/context-update/skip
+      auth: bearer
+      command: SkipContextUpdate
+    invariants:
+      - >
+        `/context-updates/pending` is a read-side projection — it does
+        not mutate state. The list it returns mirrors the parked tasks
+        the `context-update-curator` flow has produced.
+      - >
+        `run` resumes the parked task onto the curator's CLAUDE.md PR
+        acceptance path; `skip` resumes onto the skip path. Both
+        surfaces dispatch through the same CommandBus the rest of the
+        board-ui uses — no inline side effects on the route handler.
+      - >
+        Both run/skip payloads are `{ taskId }` — the path param is the
+        canonical source. Body fields beyond `taskId` are ignored.
+
+notes: |
+  Unit-level integration tests live in
+  hosts/board-ui/server.worker-log.test.ts and the curator routes in
+  hosts/board-ui/server.crud.test.ts. This scenario asserts the SHAPE
+  of the surfaces — that the right paths/verbs are present and route to
+  the right command types — so a structural regression (someone moves
+  /context-updates/pending under /api/) lights up parity-smoke.
+
+  The curator surface is the operator-facing complement to the
+  orchestrator's `context-update-curator` flow; the flow owns the side
+  effects (CLAUDE.md PR open / skip), the host routes only translate an
+  operator click into a `Command` envelope.

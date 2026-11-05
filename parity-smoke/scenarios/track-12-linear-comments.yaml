@@ -1,0 +1,79 @@
+# Parity scenario — track 12: Linear narrative trail
+#
+# Behavioural fixture: not a task-type round-trip. The contract here is
+# the cross-cutting `linear-comment-sink` subscriber (AP-IFG-020) that
+# records a one-line narrative comment on the mapped Linear issue for
+# each of seven lifecycle events. The wording is byte-for-byte parity
+# with v1 (`pipeline/worker/chat-notify.ts` at REFERENCE_BASELINE) so
+# the Linear audit trail stays continuous across the v1 → v2 cutover.
+#
+# Loaded by scripts/parity-smoke.ts (scenarios-tracks round-trip).
+# Drift between the events declared here and
+# `ALL_LINEAR_COMMENT_SINK_EVENTS` in
+# hosts/orchestrator/linear-comment-sink.ts surfaces as a red
+# parity-smoke run.
+
+track: 12
+title: Linear narrative trail — comments posted on each lifecycle event
+reference_sha: b50868495fb778dc3058e15c2501cba410a59dac
+status: green
+owner: track-12
+retained: true
+
+description: >
+  Cross-cutting subscriber writes a one-line narrative comment on the
+  mapped Linear issue for each of seven lifecycle events. Local task id
+  → Linear external issue id is resolved through the same
+  `ExternalRefsReader` projection the lifecycle subscriber uses;
+  unmapped local ids drop silently rather than raising `LinearWriteFailed`.
+
+behavioral_assertions:
+  # Cross-checked against ALL_LINEAR_COMMENT_SINK_EVENTS in
+  # hosts/orchestrator/linear-comment-sink.ts.
+  lifecycle_events:
+    - TaskCreated
+    - PlanReady
+    - CommitReady
+    - TaskFinished
+    - TaskFailed
+    - ContextUpdated
+    - InvestigationDone
+
+  invariants:
+    - >
+      Each comment body starts with a stable, kind-specific prefix (the
+      icon glyph or verb) so an operator scanning the issue can spot a
+      duplicate emission visually without automated dedup.
+    - >
+      Idempotency is intentional: `postCommentToIssue` is not
+      deduplicated. The same body posted twice yields two comments —
+      matches v1, which already posts duplicates on retry.
+    - >
+      Failure isolation: each handler wraps the tracker call in
+      try/catch. AC #4 — a tracker failure must never crash the
+      orchestrator. The bus-level error isolation in `core/events/bus.ts`
+      backstops this.
+    - >
+      Unmapped local task ids drop silently. Surfacing the miss as a
+      `LinearWriteFailed` event would risk drowning the system on
+      bursty replays; the lifecycle subscriber already raises that
+      signal where it matters.
+    - >
+      Wiring is replay-safe — the sink registers under a single named
+      subscriber (`linear-comment-sink`) so a host restart replays any
+      lifecycle events that landed while the process was down.
+
+notes: |
+  Unit-level per-event tests live in
+  adapters/linear/LinearTracker.comments.test.ts (happy path,
+  idempotency, error paths). This scenario asserts the SHAPE of the
+  vocabulary — that the right seven event types are wired into the sink
+  — so a structural regression (someone drops `TaskFailed` from the
+  sink's subscriber loop) lights up parity-smoke.
+
+  The seven lifecycle events match the seven NotificationKinds the
+  TelegramGateway subscribes to MINUS PrReady and DeployReady, PLUS
+  TaskCreated, TaskFinished, and TaskFailed (operator-visible task
+  lifecycle, not notification-bell lifecycle). The asymmetry is
+  intentional: the Linear audit trail values "task created" milestones
+  that the chat notification bell does not surface.

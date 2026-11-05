@@ -1,0 +1,167 @@
+# Parity scenario — track 9: board CRUD
+#
+# Behavioural fixture: not a task-type round-trip. The contract here is
+# the operator-facing CRUD surface the board exposes for projects, plans,
+# and tasks. Each declared command is a parity point with v1's board: the
+# v2 host must emit the matching domain event when the command lands on
+# the bus, and a v1-trained operator (or integration test) using the same
+# request shape must reach the same outcome.
+#
+# Loaded by scripts/parity-smoke.ts (scenarios-tracks round-trip).
+# Drift between `commands.exposed` here and the BoardUiCommands constant
+# in hosts/board-ui/commands.ts surfaces as a red parity-smoke run.
+
+track: 9
+title: board CRUD — create project / plan / task end to end
+reference_sha: b50868495fb778dc3058e15c2501cba410a59dac
+status: green
+owner: track-9
+retained: true
+
+description: >
+  Operator board exposes the v1 CRUD vocabulary for projects, plans,
+  tasks, notes, and the agent-cancellation control. Each command lands
+  on the worker-api's CommandBus, the matching handler emits exactly one
+  domain event, and the projection picks it up — no inline mutation.
+
+behavioral_assertions:
+  # Cross-checked against hosts/board-ui/commands.ts BoardUiCommands.
+  # `EditTask` replaces the historic `UpdateTask` string (AP-IFE-004 rename
+  # to avoid colliding with the orchestrator's lineage `UPDATE_TASK`); the
+  # board-ui still exposes the v1 PUT-task REST verb, just behind the
+  # renamed command type. `InterruptTask` is the taskId-keyed abort sibling
+  # of `CancelAgentRun`, added alongside the worker-log launcher work.
+  commands:
+    exposed:
+      - CreateProject
+      - UpdateProject
+      # The project's architecture context is its own command: it lands in a
+      # dedicated column (migration 034), not the metadata blob.
+      - UpdateProjectContext
+      - ArchiveProject
+      - CreatePlan
+      - UpdatePlan
+      - DeletePlan
+      - EditTask
+      - DeleteTask
+      - CreateInvestigation
+      - CreateNote
+      - UpdateNote
+      - DeleteNote
+      - CancelAgentRun
+      - InterruptTask
+
+  # Cross-checked against hosts/board-ui/commands.ts BoardUiEvents.
+  # `TaskInterrupted` is paired with the `InterruptTask` command above —
+  # subscribers see the interrupt only once the worker-api host has
+  # dropped the `.killed` sidecar in the task's worktree.
+  events:
+    emitted:
+      - ProjectCreated
+      - ProjectUpdated
+      - ProjectContextUpdated
+      - ProjectArchived
+      - PlanCreated
+      - PlanUpdated
+      - PlanDeleted
+      - TaskFieldsUpdated
+      - TaskDeleted
+      - InvestigationRequested
+      - NoteCreated
+      - NoteUpdated
+      - NoteDeleted
+      - AgentRunCancelled
+      - TaskInterrupted
+
+  # Representative REST surface (cross-checked against
+  # BOARD_UI_REST_ROUTES in hosts/board-ui/server.ts). These three are the
+  # load-bearing happy-path routes for the "create project → create plan
+  # → edit task" walk-through. The PUT-task route's URL shape is
+  # unchanged; only the underlying command type was renamed (UpdateTask
+  # → EditTask) when the orchestrator/board buses were merged.
+  rest_routes:
+    - method: POST
+      pattern: /api/projects
+      command: CreateProject
+    - method: POST
+      pattern: /api/projects/:pid/plans
+      command: CreatePlan
+    - method: PUT
+      pattern: /api/projects/:pid/plans/:file/tasks/:tid
+      command: EditTask
+
+notes: |
+  AC #3 architectural rule: each command emits a single domain event and
+  performs no inline state mutation. The projection (sqlite + Linear +
+  chat) lives in subscriber modules that watch the bus.
+
+  `CancelAgentRun` is the lone handler with a side effect — it delegates
+  to the injected `AgentRunKiller` before emitting `AgentRunCancelled`.
+  That side effect is unique to this command and is documented in
+  hosts/board-ui/commands.ts.
+
+# AP-IFE-006 — executable happy-path smoke steps.
+#
+# These steps are dispatched through the FULL Orchestrator's CommandBus
+# (hosts/orchestrator/main.ts) — NOT a fresh test-only CommandBus —
+# so the `registerBoardUiCommands` wiring is the exact surface under
+# test. That is the gap the original investigation called out: a
+# scenario built on its own bus would have missed the missing handler
+# registration entirely.
+#
+# The harness (scripts/parity-smoke.ts → runScenariosCoverage) boots a
+# throwaway Orchestrator per scenario file when this block is present,
+# with `AGENT_RUNNER` forced to `fake` so no real Claude CLI is needed.
+#
+# That does NOT mean the no-op killer is wired. `initDatabase()` always
+# constructs an `AgentConfigResolver`, and `initAgentRunner()` runs after
+# it, so the fast path's `!this.agentConfigResolver` guard is never true:
+# the `RoleRoutingAgentRunner` is always installed and always handed to
+# the killer ("regardless of fallback kind — its fan-out is a no-op on
+# adapters that don't own the runId"). So `CancelAgentRun` reaches a real
+# `ClaudeCliAgentRunKiller` wrapping the router wrapping `FakeAgentRunner`,
+# whose `interruptById` is a deliberately silent no-op. Nothing is logged
+# at the killer layer at all — this step asserted a
+# `NoopAgentRunKiller.kill (no-op)` debug line for exactly as long as CI
+# was never running it (see the `on:` fix in .github/workflows/ci.yml).
+#
+# The assertion below is repointed at the handler's own `accepted` line,
+# which still proves the side-effect port was traversed rather than
+# skipped: `deps.runner.kill(runId)` is awaited BEFORE the event is
+# built, and a throw there propagates instead of emitting, so reaching
+# the asserted `AgentRunCancelled` is only possible through the port.
+#
+# Scenario state is scoped to this scenario's throwaway SQLite file
+# under the run's `rootDir`, so the two steps own and clean up their
+# own state (AC #3 of TASK.md — no shared state with other scenarios).
+# The harness drains the bus with `orch.flush()` between steps; no
+# `Thread.Sleep` / hardcoded delays (AC #5 of TASK.md).
+smoke_steps:
+  - name: create_project_happy_path
+    command: CreateProject
+    actor: parity-smoke-track9
+    payload:
+      projectId: track9-smoke-project
+      name: Track-09 smoke project
+      description: parity-smoke executable seed
+    expect_event:
+      type: ProjectCreated
+      payload_contains:
+        projectId: track9-smoke-project
+        name: Track-09 smoke project
+        actor: parity-smoke-track9
+
+  - name: cancel_agent_run_happy_path
+    command: CancelAgentRun
+    actor: parity-smoke-track9
+    payload:
+      runId: track9-smoke-run
+      reason: parity-smoke happy-path cancel
+    expect_event:
+      type: AgentRunCancelled
+      payload_contains:
+        runId: track9-smoke-run
+        reason: parity-smoke happy-path cancel
+        actor: parity-smoke-track9
+    # Quoted: the ": " would otherwise parse as a nested mapping.
+    expect_logger_substring: 'board-ui: CancelAgentRun accepted'

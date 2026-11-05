@@ -1,0 +1,44 @@
+# AP-IFG-003 — start_mode derivation
+#   v1 task type: (none — no `code-review` entry in v1 TYPE_PIPELINES)
+#   v1 stages:    closest analogue is the `review` stage embedded in the
+#                 CLASSIC pipeline (dev → review → test → commit →
+#                 context-update); the v1 reviewer runs as a sub-stage of
+#                 the parent task, not as a standalone task type. The v2
+#                 `code-review` flow is the standalone form: same agent
+#                 role, no surrounding dev/test/commit chain.
+#   start_mode:   auto — the v1 review sub-stage runs automatically once
+#                 the upstream dev stage finishes; there is no operator
+#                 gate before reviewer dispatch. The standalone v2 form
+#                 inherits that: reviewer runs without an operator gate.
+
+on: TaskApproved
+when: task.type == "code-review"
+start_mode: auto
+
+# A standalone reviewer run whose deliverable is a REPORT, not a commit.
+# Not decomposable and not in the Add-task menu — the board creates it
+# directly, no planner or decomposer involved. It needs this block anyway:
+# a task type exists only as a flow that declares one, and without it the
+# View-report button had to be told about `code-review` by a hardcoded list.
+task_type:
+  label: "Code review"
+  decomposable: false
+  writes_code: false
+  worktree: task
+  add_task: false
+  produces_report: true
+steps:
+  - id: review
+    agent: reviewer
+    # `none` = no per-step pin: the runner resolves the model from the
+    # Agents panel (Agent.model) or pipeline.yaml `default_models.reviewer`
+    # (falling back to `default_models.developer` when unset).
+    model: none
+    params:
+      # Published onto the bus before the reviewer agent is invoked. The
+      # payload is filled by the host (taskId + reviewerRole + sourceBranch)
+      # so subscribers can render "review requested" cards without parsing
+      # the agent stream.
+      pre_emit: ReviewRequested
+    on_success: emit:ReviewApproved
+    on_failure: emit:ReviewRejected

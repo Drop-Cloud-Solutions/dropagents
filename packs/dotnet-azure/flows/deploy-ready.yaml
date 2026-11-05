@@ -1,0 +1,27 @@
+# AP-IFG-006 — lifecycle flow: deploy-ready
+#
+# Fires after a deploy script has finished running. The host bridges the
+# script's completion signal into a TaskCreated for this flow; start_mode:
+# auto lets the engine chain straight through the pass-through
+# `deploy-ready` stage to emit DeployReady. Tracks D and F consume that
+# event to drive downstream artefact verification, so the payload carries
+# `deploy_kind` (e.g. azure-functions, azure-app-service) and
+# `deploy_target` (e.g. staging, prod) — both sourced from the step
+# params below.
+#
+# The `deploy_kind` and `deploy_target` step params are placeholder empty
+# strings: hosts template this flow per-task before passing the loaded
+# FlowDefinition to FlowEngine.start, overwriting them with the actual
+# deploy classifier and target for the specific task. The engine rejects
+# an empty value at emit time so DeployReady can never carry an ambiguous
+# payload.
+on: TaskCreated
+start_mode: auto
+steps:
+  - id: signal
+    agent: deploy-ready
+    model: none
+    params:
+      deploy_kind: ''
+      deploy_target: ''
+    on_success: emit:DeployReady

@@ -1,0 +1,6044 @@
+/* AP-IFF-001 — v1 chrome adoption.
+ * AP-PAO-008 — v1 section / tag-chip / stepper port.
+ *
+ * The :root palette below comes from pipeline/board/board.css verbatim
+ * (white canvas, dark-blue --accent, light-blue --info). The legacy
+ * seven-column Kanban grid rules (.columns / .column / .count) were
+ * removed by AP-PAO-008 in favour of the v1 vertical section-list
+ * layout scaffolded into index.html by AP-PAO-007. Status tag-chip
+ * classes (one per human_status) and the v1 per-card stepper geometry
+ * land here too — see the dedicated rule blocks below.
+ *
+ * Variables that map to v2 names:
+ *   --bg        canvas
+ *   --bg2/3/4   layered panels / hover / pressed
+ *   --text/2/3  primary / body / muted
+ *   --border    standard 1px rule
+ *   --border2   2px or stronger
+ *   --accent    dark-blue primary action colour
+ *   --info      light-blue informational accent
+ *   --green / --amber / --red   muted status colours
+ *
+ * Old v2 aliases (--surface, --surface-muted, --border-strong,
+ * --text-muted, --success, --warn, --danger, --shadow, --radius) are
+ * preserved as alias declarations so the existing v2 selectors that
+ * reference them keep compiling without edits.
+ */
+:root {
+    --bg: #ffffff;
+    --bg2: #f7f8fa;
+    --bg3: #eef1f6;
+    --bg4: #dfe4ec;
+    --text: #0a1020;
+    --text2: #394760;
+    --text3: #7a8498;
+    --border: #e3e7ee;
+    --border2: #c9d1dd;
+    --accent: #1e3a8a;
+    --accent-hover: #1e40af;
+    --info: #3b82f6;
+    --info-bg: #e0e9fb;
+    --green: #059669;
+    --amber: #b45309;
+    --red: #b91c1c;
+    --mono: 'JetBrains Mono', 'Consolas', monospace;
+    --sans: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --radius: 8px;
+    --sidebar: 240px;
+    --shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 1px rgba(15, 23, 42, 0.03);
+    --shadow-card: 0 2px 5px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.04);
+
+    /* ─── AP-IFV-004 — hoisted density tokens ────────────────────────────
+     *
+     * The values below were magic numbers scattered across the card /
+     * section / stepper / toast / modal-chrome rules below. Hoisting
+     * them lets the parity-tuning iterations on Phase 1.5 happen in one
+     * place — touch a token, rerun `npm run parity:board`, repeat. The
+     * scale follows v1's 2/4/6/8/10/12px rhythm; the per-surface
+     * convenience tokens (`--card-padding-y`, `--toast-offset`, etc.)
+     * pin the v1-matched value once so the rule list reads as intent,
+     * not pixel hex. Keep new spacing in board.css referencing tokens
+     * here rather than introducing new raw numbers. */
+
+    /* 4px-based spacing scale */
+    --space-1: 2px;
+    --space-2: 4px;
+    --space-3: 6px;
+    --space-4: 8px;
+    --space-5: 10px;
+    --space-6: 12px;
+    --space-7: 14px;
+    --space-8: 16px;
+    --space-9: 18px;
+    --space-10: 20px;
+    --space-11: 22px;
+    --space-12: 24px;
+
+    /* Radius scale */
+    --radius-sm: 3px;
+    --radius-md: 4px;
+    --radius-lg: 6px;
+    --radius-xl: 8px; /* alias of --radius */
+    --radius-2xl: 10px;
+    --radius-pill: 999px;
+    --radius-modal: 14px;
+
+    /* Border widths */
+    --border-w: 1px;
+    --border-w-strong: 2px;
+    --border-w-accent: 3px;
+
+    /* Card density (matches v1 `.card` rhythm — tight inner padding,
+     * 5/6px gap stack, --radius-xl rounded corners). */
+    --card-padding-y: var(--space-4);
+    --card-padding-x: var(--space-5);
+    --card-gap: var(--space-3);
+    --card-radius: var(--radius-xl);
+    --plan-card-padding-y: var(--space-5);
+    --plan-card-padding-x: var(--space-6);
+
+    /* Section panel density (tightened from AP-PAO-008's 14/16 baseline
+     * to match v1's vertical rhythm without overpadding the empty-state). */
+    --section-list-gap: var(--space-6);
+    --section-padding-y: var(--space-6);
+    --section-padding-x: var(--space-8);
+    --section-gap: var(--space-4);
+    --section-body-gap: var(--space-3);
+    --section-header-gap: var(--space-5);
+
+    /* Per-card stepper geometry */
+    --stepper-cell-h: 6px;
+    --stepper-gap: var(--space-1);
+    --stepper-cell-radius: var(--radius-sm);
+
+    /* Toast (v1 bottom-right slide-in) */
+    --toast-offset: 22px;
+    --toast-padding-y: 11px;
+    --toast-padding-x: var(--space-9);
+    --toast-radius: var(--radius-2xl);
+    --toast-translate: 60px;
+    --toast-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+    --toast-z: 200;
+
+    /* Overlay + shared modal chrome */
+    --overlay-bg: rgba(15, 23, 42, 0.35);
+    --overlay-padding: var(--space-10);
+    --overlay-blur: 4px;
+    --overlay-z: 100;
+    --panel-radius: var(--radius-modal);
+    --panel-max-width: 1100px;
+    --panel-body-padding: var(--space-12);
+    --panel-footer-padding-y: var(--space-6);
+    --panel-footer-padding-x: var(--space-12);
+    --panel-footer-padding-bottom: var(--space-10);
+
+    /* Phase-5 inset modal panel (clarify / followup / reject-feedback) */
+    --modal-panel-padding-y: var(--space-9);
+    --modal-panel-padding-x: var(--space-10);
+    --modal-panel-gap: var(--space-6);
+    --modal-panel-max-width: 520px;
+    --modal-panel-radius: var(--card-radius);
+
+    /* v2 aliases — kept so existing selectors below stay green without an
+       audit-and-rename pass. */
+    --surface: var(--bg);
+    --surface-muted: var(--bg2);
+    --border-strong: var(--border2);
+    --text-muted: var(--text3);
+    --success: var(--green);
+    --warn: var(--amber);
+    --danger: var(--red);
+    --shadow: var(--shadow-soft);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* v1 chrome — the body is a horizontal flex shell. The sidebar is fixed
+   width; .main takes the remaining viewport and scrolls its own body. */
+body {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────────── */
+.sidebar {
+    width: var(--sidebar);
+    flex-shrink: 0;
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.sidebar-header {
+    padding: 18px 16px 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.sidebar-logo {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.01em;
+    margin-bottom: 2px;
+}
+
+.sidebar-sub {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: var(--mono);
+}
+
+/* Projects list takes the available vertical space; the other
+ * sidebar sections collapse to their content height. The flat-list
+ * styling below replaces the v1 "Projects" header — the operator's
+ * orientation cue is the column of color dots, not a label. */
+.sidebar .projects {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-3) 0;
+}
+
+.sidebar .context-updates,
+.sidebar .plans {
+    padding: var(--space-3) var(--space-8);
+    border-top: 1px solid var(--border);
+}
+
+/* Hide the section labels — the screen mock uses a label-free vertical
+ * flow with the color dot + name as the visual anchor. */
+.sidebar h2 {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    height: 1px;
+    width: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    position: absolute;
+}
+
+/* Project list — flat, full-width rows with a leading color dot. */
+.project-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.project-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    padding: var(--space-3) var(--space-8);
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: background-color 90ms ease, border-color 90ms ease;
+    user-select: none;
+}
+
+.project-row:hover {
+    background: var(--bg2);
+}
+
+.project-row:focus-visible {
+    outline: none;
+    background: var(--bg2);
+    border-left-color: var(--accent);
+}
+
+.project-row--selected,
+.project-row--selected:hover {
+    background: var(--bg3);
+    border-left-color: var(--accent);
+}
+
+.project-row__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--text3);
+}
+
+/* "All projects" pseudo-row at the top of the sidebar. Same chrome as
+   a real project row; the dot is a small open ring rather than a solid
+   colour so the row reads as a meta-affordance rather than a specific
+   project. */
+.project-row--all .project-row__dot--all {
+    background: transparent;
+    border: 1.5px solid var(--text3);
+    box-sizing: border-box;
+}
+.project-row--all.project-row--selected .project-row__dot--all {
+    border-color: var(--accent, #2563eb);
+}
+.project-row--all + .project-row {
+    /* Subtle divider between "All projects" and the first real project. */
+    border-top: 1px solid var(--border);
+    margin-top: 2px;
+}
+
+.project-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.project-row__archive {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    border: none;
+    color: var(--text3);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 90ms ease, background-color 90ms ease, color 90ms ease;
+}
+.project-row:hover .project-row__archive,
+.project-row:focus-within .project-row__archive {
+    opacity: 1;
+}
+.project-row__archive:hover {
+    background: var(--bg4);
+    color: var(--text);
+}
+
+.project-archived-header {
+    list-style: none;
+    padding: var(--space-4) var(--space-8) var(--space-2);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text3);
+}
+
+.project-row[data-archived='true'] .project-name {
+    color: var(--text3);
+    font-weight: 500;
+}
+
+/* "+ New project" — sits at the bottom of the list as a soft
+ * full-width affordance matching the footer button language. */
+.project-create {
+    list-style: none;
+    padding: var(--space-4) var(--space-6);
+}
+.project-create button {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: var(--space-3) var(--space-5);
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: background-color 90ms ease, border-color 90ms ease;
+}
+.project-create button:hover {
+    background: var(--bg2);
+    border-color: var(--border2);
+}
+
+.project-edit {
+    list-style: none;
+    padding: 0 var(--space-6) var(--space-3);
+}
+.project-edit button {
+    width: 100%;
+    background: transparent;
+    border: 1px dashed var(--border2);
+    color: var(--text3);
+    padding: var(--space-3) var(--space-5);
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+}
+.project-edit button:hover {
+    background: var(--bg2);
+    color: var(--text2);
+}
+
+.plans-stream-header {
+    margin: 12px 0 6px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.sidebar-footer {
+    padding: var(--space-5) var(--space-6) var(--space-6);
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.live-dot {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: 11px;
+    color: var(--text3);
+    font-family: var(--mono);
+    padding: 0 var(--space-2);
+}
+.live-dot .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text3);
+    flex-shrink: 0;
+}
+.live-dot .dot.connected {
+    background: var(--green);
+}
+.live-dot .dot.disconnected {
+    background: var(--red);
+}
+
+.pending-projections {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--amber);
+}
+
+.pending-projections[hidden] {
+    display: none;
+}
+
+.pending-projections::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--amber);
+}
+
+/* Footer-action button language — shared by Repositories + Worker log
+ * + (future) any other soft full-width affordance the operator opens
+ * from the bottom rail. The shape mirrors the v1 "+ New project"
+ * pill at the bottom of the projects list so the three footer buttons
+ * read as one family. */
+.worker-log-launcher,
+.sidebar-action-button {
+    width: 100%;
+    background: var(--bg);
+    color: var(--text2);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    padding: var(--space-3) var(--space-5);
+    font-weight: 500;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    text-align: center;
+    transition: background-color 90ms ease, border-color 90ms ease;
+}
+
+.worker-log-launcher:hover,
+.sidebar-action-button:hover {
+    background: var(--bg2);
+    border-color: var(--border2);
+}
+
+/* ── Main ──────────────────────────────────────────────────────────── */
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.main-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.proj-title {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+}
+
+.proj-desc {
+    font-size: 12px;
+    color: var(--text3);
+    margin-top: 3px;
+}
+
+.header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.main-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+}
+
+/* ── Connection dot ────────────────────────────────────────────────── */
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border2);
+    transition: background-color 200ms ease;
+}
+
+.dot.connected {
+    background: var(--green);
+}
+
+.dot.disconnected {
+    background: var(--red);
+}
+
+/* ── Buttons (shared base) ─────────────────────────────────────────── */
+button {
+    appearance: none;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+button:hover {
+    background: var(--surface-muted);
+    border-color: var(--text-muted);
+}
+
+button[data-action='approve'] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+button[data-action='approve']:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ── Sidebar empty-state New Project CTA (AP-PAO-017) ──────────────── */
+/* The empty-state row centers the CTA inside the otherwise-empty list;
+ * the button itself reuses the same `--accent` / `--accent-hover` tokens
+ * as `button[data-action='approve']` above so it reads as the primary
+ * action of the empty state without inventing a new colour. */
+.sidebar-project-list-cta {
+    list-style: none;
+    display: flex;
+    justify-content: center;
+    padding: 8px 0 4px;
+}
+
+.sidebar-new-project-cta {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    padding: 6px 14px;
+    font-weight: 600;
+}
+
+.sidebar-new-project-cta:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+/* ── Plan list / plan card (in sidebar live-plans stream) ──────────── */
+.plan-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.plan-card {
+    background: var(--surface);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--card-radius);
+    padding: var(--plan-card-padding-y) var(--plan-card-padding-x);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: var(--card-gap);
+}
+
+.plan-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-4);
+}
+
+.plan-id {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.plan-status {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--success);
+    font-weight: 600;
+}
+
+/* Planner-lifecycle badge on a sidebar plan row. Same compact pill
+ * treatment as `.plan-status`, recoloured by lifecycle state so the
+ * operator can scan the sidebar and see which plans have an active
+ * planner run. `complete` falls back to the same green as
+ * `.plan-status`; `failed` borrows the danger colour. */
+.plan-planner-badge {
+    display: inline-block;
+    margin-left: var(--space-2);
+    padding: 0 var(--space-2);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    border-radius: var(--radius-sm, 4px);
+    border: var(--border-w) solid transparent;
+    line-height: 1.5;
+}
+
+.plan-planner-badge--running {
+    color: var(--accent);
+    background: var(--accent-tint, rgba(99, 102, 241, 0.1));
+    border-color: var(--accent-tint-border, rgba(99, 102, 241, 0.3));
+}
+
+.plan-planner-badge--complete {
+    color: var(--success);
+    background: rgba(52, 211, 153, 0.12);
+    border-color: rgba(52, 211, 153, 0.3);
+}
+
+.plan-planner-badge--failed {
+    color: var(--danger);
+    background: var(--danger-bg, rgba(248, 113, 113, 0.12));
+    border-color: rgba(248, 113, 113, 0.3);
+}
+
+/* Show-planner-agent modal — narrow inline modal owned by board.ts
+ * directly (not a TS module under client/modals/). Body is a `<pre>`
+ * so the planner's assistant text renders verbatim. */
+.show-planner-agent-modal {
+    /* Inherits .modal-chrome geometry; add an explicit min-height so
+     * the body shows real estate even before chunks arrive. */
+    min-height: 360px;
+    max-height: calc(100vh - 80px);
+}
+
+.show-planner-agent-status {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+}
+
+.show-planner-agent-status[data-show-planner-agent-status='running'] {
+    color: var(--accent);
+    background: var(--accent-tint, rgba(99, 102, 241, 0.1));
+}
+
+.show-planner-agent-status[data-show-planner-agent-status='complete'] {
+    color: var(--success);
+    background: rgba(52, 211, 153, 0.12);
+}
+
+.show-planner-agent-status[data-show-planner-agent-status='failed'] {
+    color: var(--danger);
+    background: var(--danger-bg, rgba(248, 113, 113, 0.12));
+}
+
+.show-planner-agent-body {
+    margin: 0;
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-3) var(--panel-footer-padding-x);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--surface);
+}
+
+/* ── Show-agent stream rows ─────────────────────────────────────────────
+ *
+ * One `<div>` per parsed activity event. Mirrors v1's per-event row
+ * layout (board.js#renderStreamEvent + board.css `.stream-text` /
+ * `.stream-tool` / `.stream-thinking` families). Each row carries a
+ * timestamp, a category label, a one-line detail, and (optionally) an
+ * expandable `<details>` block with the full tool input / thinking
+ * body / tool result.
+ */
+.stream-header {
+    padding: var(--space-2) 0;
+    margin-bottom: var(--space-3);
+    border-bottom: var(--border-w) solid var(--border);
+    color: var(--accent);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.stream-header--complete {
+    color: var(--success);
+}
+
+.stream-header--failed {
+    color: var(--danger);
+}
+
+.stream-idle,
+.stream-elide {
+    padding: var(--space-3) 0;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.stream-row {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    column-gap: var(--space-3);
+    align-items: baseline;
+    padding: var(--space-2) 0;
+    border-bottom: var(--border-w) solid rgba(255, 255, 255, 0.04);
+}
+
+.stream-stamp {
+    color: var(--text-muted);
+    font-size: 10.5px;
+    white-space: nowrap;
+}
+
+.stream-label {
+    font-weight: 600;
+    white-space: nowrap;
+    min-width: 32px;
+}
+
+.stream-detail {
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text);
+}
+
+/* Category-specific colouring — mirrors v1's accent / amber / dim
+ * palette so the operator can scan the stream by glance. */
+.stream-row--tool_use .stream-label {
+    color: var(--accent);
+}
+
+.stream-row--tool_use .stream-detail {
+    color: #d97706; /* amber, matches v1 */
+}
+
+.stream-row--tool_result .stream-label,
+.stream-row--tool_result .stream-detail {
+    color: var(--text-muted);
+}
+
+.stream-row--thinking .stream-label,
+.stream-row--thinking .stream-detail {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.stream-row--thinking {
+    border-left: 2px solid #3b82f6;
+    padding-left: var(--space-2);
+}
+
+.stream-row--assistant .stream-label {
+    color: var(--text);
+}
+
+.stream-row--assistant .stream-detail {
+    color: var(--text);
+}
+
+.stream-row--stderr .stream-label,
+.stream-row--stderr .stream-detail {
+    color: var(--danger);
+}
+
+.stream-row--system .stream-label,
+.stream-row--system .stream-detail,
+.stream-row--lifecycle .stream-label,
+.stream-row--lifecycle .stream-detail {
+    color: var(--text-muted);
+    font-size: 10.5px;
+}
+
+/* Expandable secondary block — full tool input args, full assistant
+ * text, full thinking body. Spans all three grid columns so it
+ * aligns with the row's detail, not the timestamp. */
+.stream-extra {
+    grid-column: 1 / -1;
+    margin-top: var(--space-2);
+    margin-left: calc(var(--space-3) * 6);
+}
+
+.stream-extra__summary {
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 10.5px;
+    list-style: none;
+    user-select: none;
+}
+
+.stream-extra__summary::-webkit-details-marker {
+    display: none;
+}
+
+.stream-extra__summary::before {
+    content: '▸ ';
+    display: inline-block;
+    transition: transform 120ms ease;
+}
+
+.stream-extra[open] > .stream-extra__summary::before {
+    content: '▾ ';
+}
+
+.stream-extra__body {
+    margin: var(--space-2) 0 0;
+    padding: var(--space-2) var(--space-3);
+    max-height: 200px;
+    overflow-y: auto;
+    background: var(--bg3, rgba(0, 0, 0, 0.04));
+    border-radius: var(--radius-md);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text);
+}
+
+/* Inline body — tool inputs / tool results / thinking bodies that
+ * we surface without an expand toggle. Lives at the bottom of the
+ * row's grid so it indents under the detail text. */
+.stream-row > .stream-extra__body--inline {
+    grid-column: 3 / -1;
+    margin: var(--space-1) 0 0;
+    max-height: 160px;
+    color: var(--text-muted);
+}
+
+/* ── Active planners — main-area card surface ─────────────────────────
+ *
+ * The board's "Active planners" section renders one card per in-flight
+ * (or recently-finished) planner. Card is a column-stack with a header
+ * (title + status pill), optional revision-meta line, and an action
+ * row at the bottom. The pill recolours by status; the running variant
+ * pulses subtly so the operator sees something is happening even when
+ * no chunks have arrived yet.
+ */
+.active-planner-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    background: var(--bg2);
+    border: var(--border-w) solid var(--border2);
+    border-radius: var(--panel-radius);
+    box-shadow: var(--shadow-card);
+    margin-bottom: var(--space-3);
+}
+
+.active-planner-card--running {
+    border-color: var(--accent-tint-border, rgba(99, 102, 241, 0.4));
+}
+
+.active-planner-card--failed {
+    border-color: rgba(248, 113, 113, 0.4);
+}
+
+/* Decomposer card variant — same chrome as the planner card, slightly
+   different accent so the two are distinguishable at a glance when
+   both are on the board at once. */
+.active-decomposer-card {
+    border-left: 3px solid var(--accent-tint-border, rgba(34, 197, 94, 0.55));
+}
+.active-decomposer-card.active-planner-card--complete {
+    border-left-color: rgba(34, 197, 94, 0.75);
+}
+.active-decomposer-card.active-planner-card--failed {
+    border-left-color: rgba(248, 113, 113, 0.75);
+}
+
+.active-planner-card__header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.active-planner-card__title {
+    flex: 1;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    color: var(--text);
+}
+
+/* Agent tag on planner/decomposer/architect cards: which role + which
+ * resolved model actually ran — the first thing to check on a bad run. */
+.active-planner-card__agent {
+    font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: var(--text3, #94a3b8);
+    background: var(--surface2, #f1f5f9);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: var(--radius-sm, 4px);
+    padding: 1px 6px;
+    white-space: nowrap;
+}
+
+.active-planner-card__status {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-md);
+    border: var(--border-w) solid transparent;
+}
+
+.active-planner-card__status--running {
+    color: var(--accent);
+    background: var(--accent-tint, rgba(99, 102, 241, 0.1));
+    border-color: var(--accent-tint-border, rgba(99, 102, 241, 0.3));
+}
+
+.active-planner-card__status--complete {
+    color: var(--success);
+    background: rgba(52, 211, 153, 0.12);
+    border-color: rgba(52, 211, 153, 0.3);
+}
+
+.active-planner-card__status--failed {
+    color: var(--danger);
+    background: var(--danger-bg, rgba(248, 113, 113, 0.12));
+    border-color: rgba(248, 113, 113, 0.3);
+}
+
+/* A decomposer held on its own NEEDS_HUMAN_INPUT question. Warning
+ * colours, not danger: the run is waiting on the operator, not broken —
+ * painting it red taught operators to read "the decomposer failed again"
+ * and dismiss the card, which is the one thing that loses the question. */
+.active-planner-card__status--awaiting {
+    color: var(--warning, #f59e0b);
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.35);
+}
+
+/* The question itself, on the card. It has to be readable without opening
+ * the Answer modal — an operator scanning the board should see WHAT is
+ * being asked, not just that something is. */
+.active-planner-card__question {
+    margin: var(--space-2) 0 0;
+    padding: var(--space-2) var(--space-3);
+    border-left: 3px solid rgba(245, 158, 11, 0.55);
+    background: rgba(245, 158, 11, 0.07);
+    border-radius: var(--radius-sm, 4px);
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text);
+    white-space: pre-wrap;
+}
+
+.active-planner-card__meta {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+}
+
+.active-planner-card__actions {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.active-planner-card__action {
+    appearance: none;
+    background: var(--surface);
+    border: var(--border-w) solid var(--border-strong);
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.active-planner-card__action:hover {
+    background: var(--surface-muted);
+    border-color: var(--text-muted);
+}
+
+.active-planner-card__action--primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.active-planner-card__action--primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+.active-planner-card__action--danger {
+    background: transparent;
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.active-planner-card__action--danger:hover {
+    background: var(--danger-bg, rgba(248, 113, 113, 0.12));
+}
+
+/* ── Show planner report modal ─────────────────────────────────────────
+ *
+ * Opens when the operator clicks Show report on a completed planner
+ * card. Renders the implementation-plan markdown as an editable
+ * textarea + a feedback textarea for regenerate. Footer carries:
+ * Discard / Regenerate / Close / Approve. Sized larger than the
+ * show-agent stream modal since the operator may be reading + editing
+ * a multi-screen markdown body.
+ */
+.show-planner-report-modal {
+    width: 95vw;
+    max-width: 920px;
+    min-height: 480px;
+    max-height: calc(100vh - 80px);
+}
+
+.show-planner-report-modal .modal-chrome__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.show-planner-report-content {
+    flex: 1;
+    min-height: 240px;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--surface);
+    border: var(--border-w) solid var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    resize: vertical;
+    white-space: pre-wrap;
+}
+
+.show-planner-report-feedback {
+    min-height: 80px;
+    width: 100%;
+    box-sizing: border-box;
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--surface);
+    border: var(--border-w) solid var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    resize: vertical;
+}
+
+.np-button--danger {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.np-button--danger:hover {
+    background: var(--danger-bg, rgba(248, 113, 113, 0.12));
+}
+
+.plan-meta {
+    font-size: 12px;
+    color: var(--text);
+}
+
+.plan-actions,
+.task-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+/* ── Section-list layout (AP-PAO-008 — v1 port) ────────────────────────
+ *
+ * Replaces the v2 seven-column Kanban grid with the v1-style vertical
+ * section list scaffolded by AP-PAO-007 (`<div class="section-list">`
+ * containing `<section data-section="…">` panels each with a header
+ * `<h3>` + `.count-badge` and a `.section-body` slot). Spacing mirrors
+ * the v1 board's vertical rhythm: ~14px between sections, 14/16px
+ * internal padding, and a soft border around each panel so the section
+ * boundaries read at a glance against the white canvas.
+ */
+.section-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--section-list-gap);
+}
+
+.section-list > section {
+    background: var(--surface);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--section-padding-y) var(--section-padding-x);
+    display: flex;
+    flex-direction: column;
+    gap: var(--section-gap);
+    box-shadow: var(--shadow-soft);
+}
+
+.section-list > section > header,
+.section-list [data-section-header] {
+    display: flex;
+    align-items: center;
+    gap: var(--section-header-gap);
+    user-select: none;
+    cursor: pointer;
+    margin: calc(var(--space-2) * -1) calc(var(--space-3) * -1);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    transition: background-color 90ms ease;
+    position: relative;
+}
+
+.section-list > section > header:hover,
+.section-list [data-section-header]:hover {
+    background: var(--bg2);
+}
+
+/* Chevron drawn as a CSS triangle via border tricks — no Unicode
+ * dependency, no injected DOM. Default state points DOWN (section
+ * expanded); `[data-collapsed]` rotates to point RIGHT.
+ *
+ *   border-left + border-right transparent + border-top filled
+ *   creates a ▼ triangle pointing down. Rotating -90° on the
+ *   parent's collapsed state makes it point right.
+ *
+ * The pseudo-element sits as the first thing inside the header.
+ * Because the header is `display: flex`, the pseudo-element is a
+ * flex item and the existing `gap` separates it from the h3 cleanly. */
+.section-list > section > header::before,
+.section-list [data-section-header]::before {
+    content: '';
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 7px solid var(--text2);
+    transition: transform 120ms ease, border-top-color 90ms ease;
+    flex-shrink: 0;
+    margin-right: var(--space-1);
+}
+.section-list > section > header:hover::before,
+.section-list [data-section-header]:hover::before {
+    border-top-color: var(--text);
+}
+.section-list > section[data-collapsed] > header::before,
+.section-list > section[data-collapsed] [data-section-header]::before {
+    transform: rotate(-90deg);
+}
+
+/* [hidden] must win over id-prefixed display rules like `#all-tasks .task-list { display: flex }`.
+   Without !important the higher-specificity id selector defeats the attribute selector and the
+   collapsed body stays visible. */
+.section-list [hidden] {
+    display: none !important;
+}
+
+.section-list > section > header h3,
+.section-list [data-section-header] h3 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.count-badge {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--surface-muted);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--radius-pill);
+    padding: var(--space-1) var(--space-4);
+    min-width: 22px;
+    text-align: center;
+    font-family: var(--mono);
+    font-weight: 500;
+}
+
+.count-badge:empty::before {
+    content: '0';
+}
+
+.section-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--section-body-gap);
+}
+
+.section-body:empty {
+    display: none;
+}
+
+.section-list > section > .section-body[hidden] {
+    display: none;
+}
+
+.section-list > section[data-section='archived-plans'] > header [data-archive-toggle] {
+    margin-left: auto;
+    font-size: 11px;
+    padding: var(--space-1) var(--space-5);
+}
+
+/* ── Tag chips (AP-PAO-008 — one per status in the inventory) ──────────
+ *
+ * Per acceptance criterion #2, the human_status vocabulary surfaces as
+ * a chip-per-tag on plan and task cards. The base `.tag-chip` rule is
+ * v1's pill-shape (small monospace label, ~1/8px padding, rounded ends)
+ * and the modifier classes paint each tag in a colour that maps to its
+ * operator-meaning band:
+ *
+ *   neutral (gray)  — created, skipped
+ *   info (blue)     — approved, in_progress
+ *   warn (amber)    — ready_for_review, ready_for_test
+ *   action (orange) — ready_for_action, awaiting_clarification
+ *   accent (indigo) — ready_to_commit, ready_to_merge
+ *   success (green) — done
+ *   danger (red)    — failed
+ *
+ * Hex values are deliberately self-contained (not the parked-chip
+ * palette) so the renderer can apply them without an inline-style
+ * shim. Keep this palette aligned with `shared/plan-linear.ts`
+ * human_status names — any new tag in the vocabulary needs a class
+ * here or it falls back to the neutral base.
+ */
+.tag-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-1) var(--space-4);
+    border-radius: var(--radius-pill);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-family: var(--mono);
+    background: var(--surface-muted);
+    color: var(--text-muted);
+    border: var(--border-w) solid var(--border);
+    white-space: nowrap;
+}
+
+.tag-chip--created {
+    background: #f3f4f6;
+    color: #4b5563;
+    border-color: #d1d5db;
+}
+
+.tag-chip--approved {
+    background: #dbeafe;
+    color: #1e40af;
+    border-color: #93c5fd;
+}
+
+.tag-chip--in_progress {
+    background: #e0e9fb;
+    color: #1d4ed8;
+    border-color: #60a5fa;
+}
+
+.tag-chip--ready_for_review {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fbbf24;
+}
+
+.tag-chip--ready_for_test {
+    background: #fef9c3;
+    color: #854d0e;
+    border-color: #facc15;
+}
+
+.tag-chip--ready_to_commit {
+    background: #e0e7ff;
+    color: #3730a3;
+    border-color: #818cf8;
+}
+
+.tag-chip--ready_for_action {
+    background: #ffedd5;
+    color: #9a3412;
+    border-color: #fb923c;
+}
+
+.tag-chip--ready_to_merge {
+    background: #ccfbf1;
+    color: #115e59;
+    border-color: #5eead4;
+}
+
+.tag-chip--awaiting_clarification {
+    background: #fce7f3;
+    color: #9d174d;
+    border-color: #f9a8d4;
+}
+
+.tag-chip--done {
+    background: #d1fae5;
+    color: #065f46;
+    border-color: #6ee7b7;
+}
+
+.tag-chip--failed {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #fca5a5;
+}
+
+.tag-chip--skipped {
+    background: #e5e7eb;
+    color: #4b5563;
+    border-color: #9ca3af;
+    text-decoration: line-through;
+    text-decoration-color: rgba(75, 85, 99, 0.4);
+}
+
+.task-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.task-card {
+    background: var(--surface);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--card-radius);
+    padding: var(--card-padding-y) var(--card-padding-x);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: var(--card-gap);
+}
+
+.task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--card-gap);
+}
+
+.task-id {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.task-type {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+/* --- AP-IFB-002 — V1 task-card density ----------------------------------
+ *
+ * Priority dot, type-badge palette, and meta-row typography. The dot and
+ * badge live in `.task-header`; the title row sits underneath; the meta
+ * row sits below the stage-bar. Hex values for the per-type badge rules
+ * mirror `TYPE_STYLE` in `hosts/board-ui/web/board-task-cards.ts` — the
+ * renderer also inlines `style="background-color:…;color:…"` so the CSS
+ * rules are the parity-harness-readable palette and the inline style
+ * survives stripped-down DOM snapshots. Keep these two in lock-step.
+ *
+ * Scoped to `.task-card` descendants only — no rules outside this
+ * subtree are added or modified (AC #3), so the context-updates pane
+ * and the structured plan tree are untouched (AC #4).
+ */
+.task-card .priority-dot {
+    flex-shrink: 0;
+    display: inline-block;
+    width: var(--space-4);
+    height: var(--space-4);
+    border-radius: 50%;
+    background: var(--text3);
+}
+
+.task-card .task-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.task-card .type-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-pill);
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-family: var(--mono);
+    background: #6b7280;
+    color: #ffffff;
+}
+
+.task-card .type-badge[data-task-type-badge='implement'] {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.task-card .type-badge[data-task-type-badge='investigate'] {
+    background: #a855f7;
+    color: #ffffff;
+}
+
+.task-card .type-badge[data-task-type-badge='docs'] {
+    background: #0ea5e9;
+    color: #ffffff;
+}
+
+.task-card .type-badge[data-task-type-badge='review'] {
+    background: #f59e0b;
+    color: #1f2937;
+}
+
+.task-card .type-badge[data-task-type-badge='refactor'] {
+    background: #10b981;
+    color: #ffffff;
+}
+
+.task-card .type-badge[data-task-type-badge='scaffold'] {
+    background: #6366f1;
+    color: #ffffff;
+}
+
+.task-card .type-badge[data-task-type-badge='fix'] {
+    background: #ef4444;
+    color: #ffffff;
+}
+
+.task-card .type-badge[data-task-type-badge='test'] {
+    background: #84cc16;
+    color: #1f2937;
+}
+
+.task-card .task-meta {
+    font-size: 10.5px;
+    line-height: 1.3;
+    color: var(--text-muted);
+    font-family: var(--mono);
+}
+
+.task-plan {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.task-investigation {
+    border-top: var(--border-w) dashed var(--border);
+    margin-top: var(--space-2);
+    padding-top: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+/* `display: flex` above wins specificity against the browser's
+ * default `[hidden] { display: none }`, so `section.hidden = true`
+ * silently kept the section visible. Explicit override restores the
+ * expected hide-when-hidden semantics — without it, every task card
+ * shows the "Investigation report" rail even though
+ * `renderInvestigation` correctly sets `hidden = true` on non-
+ * investigate tasks. */
+.task-investigation[hidden] {
+    display: none;
+}
+
+.investigation-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.investigation-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--warn);
+    font-weight: 600;
+}
+
+.investigation-state {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.investigation-report {
+    background: var(--surface-muted);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    font-size: 11px;
+    color: var(--text);
+    max-height: 140px;
+    overflow: auto;
+}
+
+.investigation-report h3,
+.investigation-report h4,
+.investigation-report h5,
+.investigation-report h6 {
+    margin: 0 0 var(--space-2);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.investigation-report p {
+    margin: 0 0 var(--space-2);
+}
+
+.investigation-report ul {
+    margin: 0 0 var(--space-2);
+    padding-left: var(--space-8);
+}
+
+.investigation-actions {
+    display: flex;
+    gap: var(--space-3);
+}
+
+.investigation-actions[hidden] {
+    display: none;
+}
+
+button[data-action='implement-from-investigation'] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+button[data-action='implement-from-investigation']:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+button[data-action='dismiss-investigation'] {
+    color: var(--danger);
+    border-color: var(--border-strong);
+}
+
+button[data-action='dismiss-investigation']:hover {
+    background: var(--surface-muted);
+    border-color: var(--danger);
+}
+
+/* --- Parked-state chip ---------------------------------------------------
+ *
+ * AC #5: clarification-parked tasks must be visually distinct from
+ * wait-action / wait-merged parked tasks. We use a chip with reason-
+ * specific accent colours (orange for clarification — operator's
+ * attention required, blue for wait-action — operator's button-press
+ * required, gray for wait-merged — passively waiting on an external
+ * signal). The parent card also gets a thin left border in the same
+ * colour family so the state is glanceable from the column overview
+ * without zooming into the card body.
+ */
+.parked-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-pill);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--surface-muted);
+    color: var(--text-muted);
+    border: var(--border-w) solid var(--border);
+    cursor: help;
+}
+
+.parked-chip[hidden] {
+    display: none;
+}
+
+.parked-chip--clarification {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fbbf24;
+}
+
+/* A rejection is a FAILURE with an operator reason, so it reads red —
+   the amber parks all mean "waiting on you", which this is not. */
+.parked-chip--rejected {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #f87171;
+}
+
+.parked-chip--wait-action {
+    background: #dbeafe;
+    color: #1e40af;
+    border-color: #60a5fa;
+}
+
+.parked-chip--wait-merged {
+    background: #e5e7eb;
+    color: #374151;
+    border-color: #9ca3af;
+}
+
+.parked-chip--worktree-diff-review {
+    background: #fde68a;
+    color: #78350f;
+    border-color: #f59e0b;
+}
+
+.parked-chip--waiting-deps {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fbbf24;
+}
+
+.deps-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-pill);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border: 1px solid transparent;
+    margin-left: var(--space-2);
+}
+
+.deps-chip--blocked {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #fca5a5;
+}
+
+.deps-chip--ready {
+    background: #ecfdf5;
+    color: #065f46;
+    border-color: #6ee7b7;
+}
+
+.task-card.parked--waiting-deps {
+    border-left: var(--border-w-accent) solid #fbbf24;
+}
+
+.task-card.parked--clarification {
+    border-left: var(--border-w-accent) solid #f59e0b;
+}
+
+.task-card.parked--wait-action {
+    border-left: var(--border-w-accent) solid #3b82f6;
+}
+
+.task-card.parked--worktree-diff-review {
+    border-left: var(--border-w-accent) solid #f59e0b;
+}
+
+.diff-review-feedback {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--text);
+    border-radius: var(--radius-md);
+    resize: vertical;
+    margin-bottom: var(--space-2);
+}
+.diff-review-action-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-1);
+}
+.diff-review-action--request-changes:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.task-card.parked--wait-merged {
+    border-left: var(--border-w-accent) solid #6b7280;
+}
+
+/* ── Failed-card affordance (AP-IFV-004 AC #3) ────────────────────────
+ *
+ * Cards in any `failed:*` state already surface the discriminator via
+ * the `.tag-chip--failed` chip (red bg, red border, red text). To make
+ * the failure read at a glance without a JS hook, also paint a red
+ * left-border on the card when it carries a failed tag-chip. Uses
+ * `:has()` so no `board.ts` change is needed — the existing renderer
+ * already emits `.tag-chip--failed` for every `failed:<stage>` variant.
+ */
+.task-card:has(.tag-chip--failed) {
+    border-left: var(--border-w-accent) solid var(--danger);
+}
+
+.task-body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+/* --- Stepper (AP-PAO-008 — v1 per-card geometry port) -------------------
+ *
+ * v1 board renders the per-card pipeline progress as a left-to-right
+ * row of seven pill segments (`v1-in-progress-card.png` baseline). The
+ * row is taller and visually heavier than v2's 4px hairline so the
+ * stage is glanceable without zooming in: 6px tall cells, 3px gap, soft
+ * rounded ends, and a 1px inset border on neutral cells so the empty
+ * stages still read as a step rather than blending into the card
+ * background. Cell states:
+ *   - `done`    — fully filled, accent colour, no border
+ *   - `current` — accent fill with a 1px ring + slight opacity drop so
+ *                 the active step shows momentum without overshadowing
+ *                 completed ones
+ *   - neutral   — empty, border only
+ *
+ * The plan-card variant (`.plan-stage-bar`) carries the same geometry —
+ * it represents the furthest stage reached by any task on the plan so
+ * it has to read identically to the task-card stepper.
+ */
+.stage-bar {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+/* v1 pipeline-stage chip. Each chip is a labelled pill whose colour
+ * keys off the stage's state:
+ *
+ *   pending  — neutral grey outline (the step exists but hasn't started)
+ *   todo     — soft blue (the step is on the path but not yet processing)
+ *   active   — amber/orange (the agent is currently running this step)
+ *   done     — green (the step completed successfully)
+ *   failed   — red (the step errored; operator action required)
+ *   skipped  — faded grey (not on this task's path — e.g. all four
+ *              dev-loop stages on an `investigate` task)
+ *
+ * The legacy `.stage-cell.done` / `.stage-cell.current` rules from
+ * before AP-VP4-014 were keyed on the wrong class names (the
+ * renderer emits `stage-cell--<state>` per BEM, not `stage-cell.done`),
+ * so chips rendered as unstyled blocks containing the bare label
+ * text. The new rules below pick up the right modifier names.
+ */
+.stage-cell {
+    display: inline-flex;
+    align-items: center;
+    height: 18px;
+    padding: 0 8px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text3);
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.stage-cell--pending {
+    /* Default look — neutral. Same as the bare .stage-cell above; kept
+     * explicit so a future palette tweak only touches the modifier
+     * rules. */
+}
+
+.stage-cell--todo {
+    color: var(--accent);
+    background: var(--info-bg);
+    border-color: var(--accent);
+}
+
+.stage-cell--active {
+    color: #fff;
+    background: var(--amber);
+    border-color: var(--amber);
+    /* Subtle pulse so the operator's eye lands on the in-flight step
+     * without it being visually loud. */
+    animation: stage-active-pulse 1.6s ease-in-out infinite;
+}
+
+/* The agent parked the task with a question and is waiting on the
+   operator. Yellow is loud enough to read across the board but not
+   alarm-red; the pulse stays so the chip still reads as "live" while
+   we wait. Clicking it opens the clarify modal. */
+.stage-cell--awaiting {
+    color: #1f2937;
+    background: #facc15;
+    border-color: #facc15;
+    animation: stage-active-pulse 1.6s ease-in-out infinite;
+    cursor: pointer;
+}
+
+@keyframes stage-active-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.72; }
+}
+
+.stage-cell--done {
+    color: #fff;
+    background: var(--green);
+    border-color: var(--green);
+}
+
+.stage-cell--failed {
+    color: #fff;
+    background: var(--red);
+    border-color: var(--red);
+}
+
+/* Stage cells that have a backing per-step record are click-targets
+   for the summary modal. The renderer flips `role=button` on them and
+   we lift them slightly on hover so the click affordance is obvious. */
+.stage-cell[role='button']:hover {
+    filter: brightness(1.08);
+}
+.stage-cell[role='button']:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* --- Board plan cards (Draft / Progress / Completed / Archived) ----
+   One card per plan, rendered into each section's [data-section-body].
+   Click anywhere on the card opens the plan modal; the Archive button
+   on a Completed card stops propagation so it doesn't also open the
+   modal. */
+.board-plan-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 80ms ease, border-color 80ms ease, transform 80ms ease;
+}
+.board-plan-card:hover {
+    background: var(--bg-elevated, var(--bg2));
+    border-color: var(--accent);
+}
+.board-plan-card:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+.board-plan-card--archived {
+    opacity: 0.7;
+}
+
+.board-plan-card__header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+.board-plan-card__title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+/* Attention badge — a task under this plan is waiting on the operator.
+   Sized off the title so it reads as part of the name rather than as
+   another meta chip, and given a fixed square so a card with one does
+   not jump width against a card without. */
+.board-plan-card__attention {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    color: #fff;
+    cursor: default;
+}
+
+/* Something is broken and needs a decision — red. */
+.board-plan-card__attention--failed {
+    background: #dc2626;
+}
+
+/* Something is waiting on the operator but nothing is wrong — amber.
+   Deliberately a different colour from failure: an approval gate is the
+   pipeline working as designed, and colouring it like a fault trains the
+   operator to ignore both. */
+.board-plan-card__attention--waiting {
+    background: #d97706;
+}
+
+.board-plan-card__abbr {
+    flex: 0 0 auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 2px 6px;
+    border-radius: var(--radius-pill);
+    background: var(--bg2);
+    color: var(--text2);
+    border: 1px solid var(--border);
+}
+
+.board-plan-card__meta,
+.board-plan-card__counts {
+    font-size: 11px;
+    color: var(--text2);
+}
+.board-plan-card__counts {
+    font-family: var(--mono);
+    color: var(--text3);
+}
+
+.board-plan-card__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
+}
+.board-plan-card__actions--stacked {
+    flex-direction: column;
+    align-items: stretch;
+}
+.board-plan-card__button-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-1);
+}
+.board-plan-card__feedback {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 12px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--text);
+    border-radius: var(--radius-md);
+    resize: vertical;
+}
+.board-plan-card__archive,
+.board-plan-card__unarchive,
+.board-plan-card__edit,
+.board-plan-card__decompose,
+.board-plan-card__run-planner,
+.board-plan-card__regenerate,
+.board-plan-card__dismiss {
+    font-size: 11px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--text);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+.board-plan-card__unarchive:hover {
+    background: var(--green, #16a34a);
+    border-color: var(--green, #16a34a);
+    color: #fff;
+}
+.board-plan-card__archive:hover,
+.board-plan-card__dismiss:hover {
+    background: var(--amber);
+    border-color: var(--amber);
+    color: #fff;
+}
+.board-plan-card__edit:hover {
+    background: var(--bg3, var(--bg2));
+    border-color: var(--text-muted, var(--border));
+}
+.board-plan-card__decompose:hover,
+.board-plan-card__run-planner:hover {
+    background: var(--accent, #2563eb);
+    border-color: var(--accent, #2563eb);
+    color: #fff;
+}
+.board-plan-card__regenerate:hover {
+    background: var(--bg3, var(--bg2));
+    border-color: var(--text-muted, var(--border));
+}
+.board-plan-card__decompose:disabled,
+.board-plan-card__run-planner:disabled,
+.board-plan-card__regenerate:disabled {
+    opacity: 0.6;
+    cursor: progress;
+}
+
+/* --- Plan modal ---------------------------------------------------- */
+.plan-modal__body {
+    max-height: 80vh;
+    overflow: auto;
+}
+.plan-modal__chips {
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: var(--space-3);
+}
+.plan-modal__repo {
+    margin-bottom: var(--space-4);
+}
+.plan-modal__repo h4 {
+    margin: 0 0 var(--space-1) 0;
+}
+.plan-modal__repo-hint {
+    margin: 0 0 var(--space-2) 0;
+    font-size: 12px;
+    color: var(--text2);
+}
+.plan-modal__repo-select {
+    width: 100%;
+    padding: var(--space-2);
+    background: var(--bg2);
+    color: var(--text1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+}
+.plan-modal__plan-body {
+    margin-bottom: var(--space-4);
+    padding: var(--space-3);
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    line-height: 1.5;
+}
+/* Fenced code blocks + Mermaid diagrams rendered inside markdown bodies
+   (plan bodies, and the architect's committed design docs). */
+.markdown-pre {
+    margin: var(--space-2) 0;
+    padding: var(--space-2);
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: auto;
+    font-size: 12px;
+    line-height: 1.45;
+}
+.markdown-mermaid {
+    margin: var(--space-3) 0;
+    padding: var(--space-3);
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: auto;
+    text-align: center;
+}
+.markdown-mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+.markdown-mermaid__loading {
+    font-size: 12px;
+    color: var(--text3);
+    margin: 0;
+}
+
+/* --- Requirements lane (Architect Tier, Phase 2) ------------------ */
+.requirement-card__status {
+    margin-left: auto;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    color: var(--text2);
+}
+/* Solid tinted chip + dark text: the old pastel-text-only variants
+   (#dbeafe on a light card) were unreadable. Dark ink on a light tint
+   reads on light AND dark themes. */
+.requirement-card__status--architecting { border-color: #60a5fa; background: #dbeafe; color: #1e3a8a; }
+.requirement-card__status--proposed { border-color: #f59e0b; background: #fef3c7; color: #92400e; }
+.requirement-card__status--approved { border-color: #10b981; background: #d1fae5; color: #065f46; }
+.requirement-card__show-agent {
+    margin-left: var(--space-2);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg1);
+    color: var(--text2);
+    cursor: pointer;
+}
+.requirement-card__show-agent:hover {
+    border-color: #60a5fa;
+    color: #dbeafe;
+}
+.requirement-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-width: 420px;
+}
+.requirement-form label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    font-size: 12px;
+    color: var(--text3);
+}
+.requirement-form input,
+.requirement-form textarea {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text2);
+    padding: var(--space-2);
+    font: inherit;
+}
+.requirement-form__actions {
+    display: flex;
+    justify-content: flex-end;
+}
+.requirement-modal__meta {
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: var(--space-3);
+}
+.requirement-modal__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+}
+.requirement-modal__section {
+    margin-bottom: var(--space-3);
+}
+
+/* "Regenerate this design" — the roomy textarea that replaced a
+   `window.prompt`. Mirrors `.plan-modal__regenerate` so the two
+   regenerate surfaces read as the same control; the rule is separate
+   rather than a shared selector because the requirement body is not a
+   flex column, so this section provides its own spacing. */
+.requirement-modal__regenerate-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border);
+}
+.requirement-modal__regenerate-section > h4 {
+    margin: 0;
+    font-size: 13px;
+}
+.requirement-modal__regenerate-hint {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text2);
+}
+.requirement-modal__regenerate-feedback {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--text);
+    border-radius: var(--radius-md);
+    /* Vertical only: a horizontal drag inside a fixed-width modal just
+       spills the control out of its column. */
+    resize: vertical;
+}
+.requirement-modal__regenerate-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+.requirement-modal__regenerate-btn {
+    font-size: 12px;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--text);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+.requirement-modal__regenerate-btn:hover {
+    background: var(--accent, #2563eb);
+    border-color: var(--accent, #2563eb);
+    color: #fff;
+}
+.requirement-modal__regenerate-btn:disabled {
+    opacity: 0.6;
+    cursor: progress;
+}
+.requirement-modal__section > h4 {
+    margin: 0 0 var(--space-2) 0;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text3);
+}
+.requirement-modal__note {
+    font-size: 12px;
+    color: var(--text3);
+}
+/* "Show older" expander at the bottom of the Archived plans section. */
+/* Archived-plans search box. Sits in the section header beside the
+   count badge and the Show-archived toggle. `margin-left: auto` pushes
+   it and the toggle to the right of the heading without needing the
+   header to know about either. */
+.archived-search {
+    margin-left: auto;
+    margin-right: var(--space-2);
+    min-width: 0;
+    width: clamp(140px, 28%, 280px);
+    font-family: inherit;
+    font-size: 12px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg2);
+    color: var(--text);
+}
+.archived-search::placeholder {
+    color: var(--text3);
+}
+.archived-search:focus {
+    outline: none;
+    border-color: var(--accent, #2563eb);
+}
+/* The header is a click-to-collapse target; the cursor must stop
+   advertising that over the one control inside it that is not. */
+.archived-search,
+.archived-search:hover {
+    cursor: text;
+}
+
+/* "No archived plans match …" — an empty body under a search box reads
+   as a broken filter rather than as no results. */
+.archived-search-empty {
+    margin: var(--space-2) 0 0;
+    font-size: 12px;
+    color: var(--text3);
+}
+
+.archived-show-older {
+    display: block;
+    width: 100%;
+    margin-top: var(--space-2);
+    padding: var(--space-2);
+    font-size: 12px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text3);
+    cursor: pointer;
+}
+.archived-show-older:hover {
+    color: var(--text1, inherit);
+    border-color: var(--border-strong, var(--border));
+}
+
+/* Diagram export toolbar in the requirement modal's Design section. */
+.requirement-modal__export {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+.requirement-modal__export-label {
+    font-size: 11px;
+    color: var(--text3);
+}
+.requirement-modal__export button {
+    font-size: 11px;
+    padding: 2px var(--space-2);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text2);
+    cursor: pointer;
+}
+.requirement-modal__export button:hover {
+    color: var(--text1, inherit);
+    border-color: var(--border-strong, var(--border));
+}
+
+/* Business request (full text): read-only while the architect runs,
+   editable form when idle. */
+.requirement-modal__request-text {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 13px;
+    color: var(--text2);
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-3);
+    max-height: 320px;
+    overflow-y: auto;
+}
+.requirement-modal__request {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+.requirement-modal__request label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    font-size: 12px;
+    color: var(--text3);
+}
+.requirement-modal__request input,
+.requirement-modal__request textarea {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text2);
+    padding: var(--space-2);
+    font: inherit;
+}
+.requirement-modal__save {
+    align-self: flex-start;
+}
+.plan-modal__plan-body > h4 {
+    margin: 0 0 var(--space-2) 0;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text3);
+}
+.plan-modal__tasks > h4 {
+    margin: 0 0 var(--space-2) 0;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text3);
+}
+.plan-modal__task-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+.plan-modal__tasks-empty {
+    font-size: 12px;
+    color: var(--text3);
+    margin: 0;
+}
+.plan-modal__tasks-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+.plan-modal__add-task-btn {
+    font-size: 12px;
+    padding: 2px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg2);
+    color: var(--text2);
+    cursor: pointer;
+}
+.plan-modal__add-task-btn:hover {
+    color: var(--text1);
+    border-color: var(--text3);
+}
+
+/* --- Add-task modal ------------------------------------------------ */
+.add-task-modal {
+    width: min(560px, 92vw);
+}
+.add-task-modal__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+.add-task-modal__field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.add-task-modal__label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text3);
+}
+.add-task-modal__title,
+.add-task-modal__description,
+.add-task-modal__type,
+.add-task-modal__repo {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--bg2);
+    color: var(--text1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font: inherit;
+    font-size: 13px;
+}
+.add-task-modal__description {
+    resize: vertical;
+}
+.add-task-modal__deps {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 180px;
+    overflow-y: auto;
+}
+.add-task-modal__dep-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text2);
+    cursor: pointer;
+}
+.add-task-modal__error {
+    margin: 0;
+    font-size: 12px;
+    color: var(--danger, #e5484d);
+}
+.add-task-modal__actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* --- Plan/requirement split-view chat ------------------------------ */
+.plan-modal__content {
+    display: flex;
+    flex-direction: row;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+}
+.plan-modal__content > .plan-modal__body {
+    flex: 1 1 55%;
+    min-width: 0;
+    overflow-y: auto;
+}
+.plan-modal--split {
+    width: min(1400px, 94vw);
+    /* Fixed height while the chat pane is open (mirrors .chat-modal's
+       80vh): the composer pins to the pane's bottom edge instead of
+       floating up under a short thread, and both panes get a stable
+       scroll viewport. */
+    height: calc(100vh - 40px);
+}
+.plan-modal__chat-pane {
+    flex: 1 1 45%;
+    min-width: 320px;
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+.plan-modal__chat-toggle {
+    font-size: 12px;
+    padding: 2px 10px;
+    margin-left: auto;
+    margin-right: 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg2);
+    color: var(--text2);
+    cursor: pointer;
+}
+.plan-modal__chat-toggle:hover {
+    color: var(--text1);
+    border-color: var(--text3);
+}
+@media (max-width: 1000px) {
+    .plan-modal__content {
+        flex-direction: column;
+    }
+    .plan-modal__chat-pane {
+        border-left: none;
+        border-top: 1px solid var(--border);
+        min-height: 280px;
+    }
+}
+
+.scoped-chat {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+}
+.scoped-chat__thread {
+    flex: 1 1 auto;
+    /* min-height: 0 is load-bearing: without it this flex child refuses
+       to shrink below its content and the pane grows past the modal
+       bottom instead of scrolling (field case: unreadable long chats). */
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.scoped-chat__working {
+    align-self: flex-start;
+    font-size: 12px;
+    color: var(--text3);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.scoped-chat__working::after {
+    content: '●●●';
+    letter-spacing: 3px;
+    animation: scoped-chat-pulse 1.2s ease-in-out infinite;
+}
+@keyframes scoped-chat-pulse {
+    0%, 100% { opacity: 0.25; }
+    50% { opacity: 1; }
+}
+.scoped-chat__msg {
+    font-size: 13px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    border-radius: 8px;
+    padding: 8px 10px;
+    max-width: 95%;
+}
+.scoped-chat__msg--user {
+    align-self: flex-end;
+    background: var(--accent-bg, #1d4ed822);
+    color: var(--text1);
+}
+.scoped-chat__msg--assistant {
+    align-self: flex-start;
+    background: var(--bg2);
+    color: var(--text1);
+}
+.scoped-chat__msg--system {
+    align-self: stretch;
+    color: var(--warning, #d4a72c);
+    font-size: 12px;
+}
+.scoped-chat__proposal {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: var(--bg2);
+}
+.scoped-chat__proposal--applied {
+    opacity: 0.7;
+}
+.scoped-chat__proposal-head {
+    font-size: 13px;
+    color: var(--text1);
+    margin-bottom: 6px;
+}
+.scoped-chat__proposal-body {
+    font-size: 12px;
+    max-height: 220px;
+    overflow: auto;
+    white-space: pre-wrap;
+    background: var(--bg1, #0000);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin: 0 0 6px 0;
+}
+.scoped-chat__confirm {
+    font-size: 12px;
+    padding: 4px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg1, transparent);
+    color: var(--text1);
+    cursor: pointer;
+}
+.scoped-chat__confirm:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+/* A chip can carry more than one way to accept a proposal (in a plan
+   scope: add the task here, or create a separate plan). Wrap rather than
+   shrink — the pane is the narrow half of a split modal and the labels
+   name repos, so squeezing them onto one line truncates the very detail
+   worth reading before confirming. */
+.scoped-chat__proposal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+.scoped-chat__composer {
+    display: flex;
+    gap: 8px;
+    padding: var(--space-2) var(--space-3);
+    border-top: 1px solid var(--border);
+}
+.scoped-chat__input {
+    flex: 1 1 auto;
+    background: var(--bg2);
+    color: var(--text1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font: inherit;
+    font-size: 13px;
+    resize: vertical;
+}
+.scoped-chat__send {
+    align-self: flex-end;
+    font-size: 13px;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg2);
+    color: var(--text1);
+    cursor: pointer;
+}
+
+/* Mid-turn the Send button becomes Stop. Same red as the main chat
+   modal's stop control so the affordance reads the same in both. */
+.scoped-chat__send--stop {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: #fff;
+}
+
+.scoped-chat__send--stop:hover {
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+
+/* --- Requirement fan-out verification ------------------------------ */
+.requirement-card__verify {
+    margin-top: 6px;
+    font-size: 12px;
+    border-radius: 6px;
+    padding: 6px 8px;
+}
+.requirement-card__verify--running {
+    color: var(--text2);
+    background: var(--bg2);
+}
+.requirement-card__verify--failed {
+    border: 1px solid var(--danger, #e5484d);
+}
+.requirement-card__verify--overridden {
+    color: var(--warning, #d4a72c);
+}
+.requirement-card__verify-head {
+    color: var(--danger, #e5484d);
+    margin-bottom: 4px;
+}
+.requirement-card__verify-findings {
+    margin: 0 0 6px 0;
+    padding-left: 16px;
+    color: var(--text2);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.requirement-card__verify-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.requirement-card__verify-actions button {
+    font-size: 12px;
+    padding: 3px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg2);
+    color: var(--text1);
+    cursor: pointer;
+}
+.requirement-card__verify-actions button:hover {
+    border-color: var(--text3);
+}
+.requirement-card__verify-cancel {
+    color: var(--danger, #e5484d) !important;
+}
+
+/* --- Agent auth banner ---------------------------------------------- */
+.agent-auth-banner {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    padding: 8px 16px;
+    font-size: 13px;
+    background: #7c2d12;
+    color: #ffedd5;
+    border-bottom: 1px solid #ea580c;
+}
+.agent-auth-banner--expired {
+    background: #7f1d1d;
+    color: #fee2e2;
+    border-bottom-color: #dc2626;
+}
+
+/* --- Planner failure (draft card + modal) -------------------------- */
+.board-plan-card__planner-error,
+.plan-modal__planner-error {
+    font-size: 12px;
+    color: var(--danger, #e5484d);
+    margin: 4px 0 0 0;
+    overflow-wrap: anywhere;
+}
+
+/* --- Impact-check warnings ---------------------------------------- */
+.plan-modal__impact {
+    margin-bottom: var(--space-4);
+    border: 1px solid var(--warning, #d4a72c);
+    border-radius: 8px;
+    padding: var(--space-3);
+}
+.plan-modal__impact > h4 {
+    margin: 0 0 var(--space-2) 0;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--warning, #d4a72c);
+}
+.plan-modal__impact-intro {
+    margin: 0 0 var(--space-2) 0;
+    font-size: 12px;
+    color: var(--text3);
+}
+.plan-modal__impact-list {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 12px;
+    color: var(--text2);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.plan-modal__impact-list code {
+    font-size: 11px;
+}
+.plan-modal__impact-more {
+    color: var(--text3);
+    list-style: none;
+}
+
+/* --- Plan dependency graph (Mermaid) ------------------------------ */
+.plan-modal__depgraph {
+    margin-bottom: var(--space-4);
+}
+.plan-modal__depgraph > h4 {
+    margin: 0 0 var(--space-2) 0;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text3);
+}
+.plan-modal__depgraph-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-bottom: var(--space-2);
+    font-size: 11px;
+    color: var(--text2);
+}
+.depgraph-legend__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.depgraph-legend__item::before {
+    content: '';
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    border: 1px solid;
+}
+.depgraph-legend__item--done::before { background: #065f46; border-color: #10b981; }
+.depgraph-legend__item--running::before { background: #1e3a8a; border-color: #60a5fa; }
+.depgraph-legend__item--blocked::before { background: #78350f; border-color: #f59e0b; }
+.depgraph-legend__item--failed::before { background: #7f1d1d; border-color: #ef4444; }
+.depgraph-legend__item--skipped::before { background: #374151; border-color: #9ca3af; }
+.depgraph-legend__item--todo::before { background: #1f2937; border-color: #4b5563; }
+.plan-modal__depgraph-canvas {
+    padding: var(--space-3);
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: auto;
+    max-height: 420px;
+    text-align: center;
+}
+.plan-modal__depgraph-canvas svg {
+    max-width: 100%;
+    height: auto;
+}
+.plan-modal__depgraph-loading {
+    font-size: 12px;
+    color: var(--text3);
+    margin: 0;
+}
+.plan-modal__depgraph-fallback {
+    font-size: 12px;
+    color: var(--text2);
+    text-align: left;
+}
+.plan-modal__depgraph-fallback ul {
+    margin: var(--space-2) 0 0 0;
+    padding-left: var(--space-4);
+}
+
+/* --- Task modal --------------------------------------------------- */
+.task-modal__body {
+    max-height: 80vh;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+.task-modal__chips {
+    font-size: 12px;
+    color: var(--text3);
+}
+.task-modal__detail-pending {
+    margin: var(--space-2) 0;
+    font-size: 12px;
+    font-style: italic;
+    color: var(--text2);
+}
+
+.task-modal__description > h4,
+.task-modal__goal > h4,
+.task-modal__impact > h4,
+.task-modal__acceptance > h4,
+.task-modal__rejection > h4,
+.task-modal__parked > h4,
+.task-modal__steps > h4,
+.task-modal__pr > h4,
+.task-modal__actions > h4 {
+    margin: 0 0 var(--space-1);
+    font-size: 13px;
+}
+/* Ticket layout (goal / technical impact / acceptance criteria). */
+.task-modal__goal-text {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+}
+.task-modal__impact-group {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin-bottom: var(--space-1);
+}
+.task-modal__impact-tag {
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+    background: var(--surface2, #eef2f7);
+    color: var(--text2);
+}
+.task-modal__impact-tag--create { background: #dcfce7; color: #166534; }
+.task-modal__impact-tag--modify { background: #dbeafe; color: #1e40af; }
+.task-modal__impact-tag--delete { background: #fee2e2; color: #991b1b; }
+.task-modal__impact-files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.task-modal__impact-file {
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+    background: var(--surface2, #f1f5f9);
+    border: 1px solid var(--border, #e2e8f0);
+    word-break: break-all;
+}
+.task-modal__acceptance-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+.task-modal__acceptance-item {
+    font-size: 13px;
+    padding-left: 22px;
+    position: relative;
+}
+.task-modal__acceptance-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 2px;
+    width: 12px;
+    height: 12px;
+    border: 1.5px solid var(--text3, #94a3b8);
+    border-radius: 3px;
+}
+.task-modal__parked {
+    padding: var(--space-2);
+    background: #fef3c7;
+    border: 1px solid #fbbf24;
+    border-radius: var(--radius-md);
+    color: #92400e;
+}
+/* Same red as the card chip; the parked block above is amber because it
+   means "waiting", and these two must not be mistaken for each other. */
+.task-modal__rejection {
+    padding: var(--space-2);
+    background: #fee2e2;
+    border: 1px solid #f87171;
+    border-radius: var(--radius-md);
+    color: #991b1b;
+}
+.task-modal__rejection-note {
+    margin: 0;
+    font-size: 13px;
+}
+.task-modal__rejection-reason {
+    margin-top: var(--space-1);
+    font-size: 13px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.task-modal__parked-summary,
+.task-modal__parked-question {
+    margin: 0;
+    font-size: 13px;
+}
+.task-modal__parked-question {
+    margin-top: var(--space-1);
+    font-style: italic;
+}
+.task-modal__step-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+.task-modal__step {
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg2);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: baseline;
+    gap: var(--space-1);
+}
+.task-modal__step--clickable {
+    cursor: pointer;
+}
+.task-modal__step--clickable:hover {
+    background: var(--bg3, var(--bg2));
+    border-color: var(--text-muted, var(--border));
+}
+.task-modal__step-label {
+    font-weight: 600;
+    font-size: 13px;
+}
+.task-modal__step-status {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: var(--radius-md);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.task-modal__step-status--complete {
+    background: #d1fae5;
+    color: #065f46;
+}
+.task-modal__step-status--running {
+    background: #dbeafe;
+    color: #1e40af;
+}
+.task-modal__step-status--failed {
+    background: #fee2e2;
+    color: #991b1b;
+}
+.task-modal__step-status--pending {
+    background: var(--bg3, var(--bg2));
+    color: var(--text3);
+}
+.task-modal__step-summary {
+    grid-column: 1 / -1;
+    margin: var(--space-1) 0 0;
+    font-size: 12px;
+    color: var(--text2, var(--text));
+    white-space: pre-wrap;
+}
+.task-modal__steps-empty {
+    font-size: 12px;
+    color: var(--text3);
+    margin: 0;
+}
+.task-modal__pr-link {
+    font-size: 13px;
+    word-break: break-all;
+}
+.task-modal__action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+/* Make task cards look clickable. The card itself was a static <li>
+   pre-modal; this adds a subtle hover affordance without changing the
+   button-row affordances inside. */
+.task-card[role='button'] {
+    cursor: pointer;
+}
+.task-card[role='button']:hover {
+    border-color: var(--text-muted, var(--border));
+}
+
+/* The two document sections in the plan modal: the operator's original
+   request and the planner's implementation plan. The request is
+   REFERENCE material — you read it to check the plan against it — so it
+   is set back a little; the plan is what is under review and keeps the
+   default emphasis. */
+.plan-modal__plan-body--request > h4,
+.plan-modal__request-summary {
+    color: var(--text2);
+}
+.plan-modal__plan-body--request {
+    border-left: 2px solid var(--border);
+    padding-left: var(--space-3);
+}
+/* Collapsed form, for a request long enough to push the plan off the
+   screen. Styled as a heading so a closed section still reads as one. */
+.plan-modal__request-summary {
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: var(--space-2);
+}
+.plan-modal__request-summary:hover {
+    color: var(--text1, inherit);
+}
+
+.plan-modal__regenerate {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--border);
+}
+.plan-modal__regenerate > h4 {
+    margin: 0;
+    font-size: 13px;
+}
+.plan-modal__regenerate-feedback {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--text);
+    border-radius: var(--radius-md);
+    resize: vertical;
+}
+.plan-modal__regenerate-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+.plan-modal__regenerate-btn {
+    font-size: 12px;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--text);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+.plan-modal__regenerate-btn:hover {
+    background: var(--accent, #2563eb);
+    border-color: var(--accent, #2563eb);
+    color: #fff;
+}
+.plan-modal__regenerate-btn:disabled {
+    opacity: 0.6;
+    cursor: progress;
+}
+
+/* Per-step summary modal body — the `<pre>` carries the assistant
+   text; wrap long lines and cap the height so the modal stays
+   readable without horizontal scroll. */
+.task-step-summary-text {
+    margin: 0;
+    padding: var(--space-3);
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 60vh;
+    overflow: auto;
+}
+
+.stage-cell--skipped {
+    color: var(--text3);
+    background: var(--bg2);
+    border-color: var(--border);
+    opacity: 0.55;
+}
+
+.plan-stage-bar {
+    margin-top: var(--space-2);
+}
+
+/* --- Agent-stream tail ---------------------------------------------------
+ *
+ * Last few events for the task. Monospaced + small so a card with a
+ * full tail still fits inside the column without dominating the
+ * layout. Each line kind gets a small accent colour for the leading
+ * glyph (handled in the JS as the prefix of the textContent).
+ */
+.agent-stream {
+    border-top: var(--border-w) dashed var(--border);
+    padding-top: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.agent-stream[hidden] {
+    display: none;
+}
+
+.agent-stream-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+.agent-stream-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.agent-stream-tail {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    max-height: 96px;
+    overflow: auto;
+}
+
+.stream-line {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10.5px;
+    color: var(--text-muted);
+    line-height: 1.35;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.stream-line--started {
+    color: var(--accent);
+}
+
+.stream-line--finished {
+    color: var(--success);
+}
+
+.stream-line--question {
+    color: var(--warn);
+}
+
+.stream-line--parked {
+    color: #92400e;
+}
+
+.stream-line--resumed {
+    color: var(--accent);
+}
+
+.investigation-pending {
+    margin: 0;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+button[data-action='resume'] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+button[data-action='resume']:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+button[data-resume-action][hidden] {
+    display: none;
+}
+
+/* ── Overlay / panel (v1) ──────────────────────────────────────────────
+ *
+ * Mount target for modal panels appended into #overlay-root. The .hidden
+ * class is the v1 idiom for dismissed overlays; structural only here,
+ * the JS wiring lands in a follow-up task.
+ */
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--overlay-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--overlay-z);
+    padding: var(--overlay-padding);
+    backdrop-filter: blur(var(--overlay-blur));
+}
+
+.overlay.hidden {
+    display: none;
+}
+
+/* Leaf dialogs (review report, notes, investigate, worker log, ...)
+ * mount BARE into #overlay-root — no .overlay backdrop wrapper — so
+ * without positioning they rendered in normal document flow at the
+ * bottom of the page: visually a "side panel" stuck BEHIND the fixed
+ * task/plan modal chrome (z = --overlay-z) that opened them. Position
+ * them as real dialogs, centered and stacked ABOVE that chrome. */
+#overlay-root > .modal,
+#overlay-root > .review-report-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: calc(var(--overlay-z) + 20);
+}
+
+/* CLOSED means invisible. OverlayManager.closeOverlay only flips
+ * `aria-hidden="true"` on the registered element — it never removes or
+ * hides it — so a leaf panel whose modal doesn't tear itself down stayed
+ * fully visible after Close (operator report: "clicked Close, nothing
+ * happened"). Children only: some callers register #overlay-root ITSELF,
+ * and hiding that would take every open overlay down with it. */
+#overlay-root > [aria-hidden='true'] {
+    display: none;
+}
+
+.panel {
+    background: var(--bg2);
+    border: var(--border-w) solid var(--border2);
+    border-radius: var(--panel-radius);
+    width: 95vw;
+    max-width: var(--panel-max-width);
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 40px);
+}
+
+.panel.wide {
+    max-width: var(--panel-max-width);
+}
+
+.panel h3 {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: var(--space-4);
+    letter-spacing: -0.01em;
+}
+
+.panel p {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: var(--space-8);
+    line-height: 1.55;
+}
+
+.panel-body {
+    padding: var(--panel-body-padding);
+    flex: 1;
+    overflow-y: auto;
+}
+
+.panel-footer {
+    padding: var(--panel-footer-padding-y) var(--panel-footer-padding-x) var(--panel-footer-padding-bottom);
+    border-top: var(--border-w) solid var(--border);
+    flex-shrink: 0;
+}
+
+/* ── Diff hunk navigation (v1) ────────────────────────────────────── */
+.diff-hunk-nav,
+.diff-hunk-nav-group {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-shrink: 0;
+}
+
+.diff-hunk-nav .btn-secondary,
+.diff-hunk-nav-group .btn-secondary {
+    font-size: 11px;
+    padding: var(--space-2) var(--space-5);
+    line-height: 1.2;
+}
+
+.diff-hunk-nav .btn-secondary:disabled,
+.diff-hunk-nav-group .btn-secondary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* ── Toast (v1) ────────────────────────────────────────────────────────
+ *
+ * Bottom-right slide-in. Empty by default; the .show class is added by
+ * future board.js wiring when a toast is queued.
+ */
+.toast {
+    position: fixed;
+    bottom: var(--toast-offset);
+    right: var(--toast-offset);
+    background: var(--text);
+    color: #fff;
+    border-radius: var(--toast-radius);
+    padding: var(--toast-padding-y) var(--toast-padding-x);
+    font-size: 13px;
+    font-weight: 500;
+    transform: translateY(var(--toast-translate));
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: var(--toast-z);
+    box-shadow: var(--toast-shadow);
+}
+
+.toast.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+/* Kind modifiers — paint the chip in the same accent palette used by
+ * the rest of the board (status dots, parked chips). The base `.toast`
+ * rule above already supplies layout + the slide transition; these
+ * rules only override the background so each kind reads at a glance.
+ * Keep colour values aligned with the `--success` / `--danger` /
+ * `--accent` tokens so a future theme switch flows through. */
+.toast--info {
+    background: var(--accent);
+}
+
+.toast--success {
+    background: var(--success);
+}
+
+.toast--error {
+    background: var(--danger);
+}
+
+@media (max-width: 900px) {
+    body {
+        flex-direction: column;
+        height: auto;
+        overflow: auto;
+    }
+    .sidebar {
+        width: 100%;
+        height: auto;
+    }
+    .main {
+        height: auto;
+    }
+}
+
+/* ── AP-VP5-014 — Phase 5 modal + notes panel styling ──────────────────
+ *
+ * The four AP-VP5-010/011/012/013 surfaces (clarify modal,
+ * investigation follow-up modal, reject-feedback modal, per-project
+ * notes panel) all build their own DOM in TypeScript and expose stable
+ * CSS hooks (see the *_CLASS exports in each module). The rules below
+ * paint them with the v1 light-theme tokens already declared on :root
+ * so the Phase 5 chrome reads identically to the Phase 1 modals and
+ * panels — same font, same border/radius rhythm, same accent palette,
+ * same shadow-soft elevation.
+ */
+
+/* Each Phase 5 modal lays out as a centred panel with a stack of form
+ * controls. We reuse the .overlay / .panel base rules above and only
+ * customise the panel max-width + the form-control density per modal. */
+.clarify-overlay,
+.followup-overlay,
+.reject-feedback-overlay {
+    /* The shared `.overlay` rule above handles backdrop + flex centering;
+     * nothing extra is needed here, but the per-modal selector exists so
+     * future tweaks (per-modal padding, alternate backdrop tint) can land
+     * without touching the shared base. */
+}
+
+.clarify-panel,
+.followup-panel,
+.reject-feedback-panel {
+    background: var(--surface);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--modal-panel-radius);
+    box-shadow: var(--shadow-card);
+    width: 95vw;
+    max-width: var(--modal-panel-max-width);
+    max-height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--modal-panel-gap);
+    padding: var(--modal-panel-padding-y) var(--modal-panel-padding-x);
+}
+
+.followup-panel {
+    /* The follow-up modal needs more height for the thread + textarea
+     * stack — bump the max-width so long turns wrap less aggressively. */
+    max-width: 640px;
+}
+
+.clarify-panel h3,
+.followup-panel h3,
+.reject-feedback-panel h3,
+.followup-title,
+.reject-feedback-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text);
+}
+
+.clarify-question {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text2);
+    margin: 0 0 var(--space-2);
+}
+
+.clarify-form,
+.followup-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+}
+
+.clarify-choices {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    background: var(--surface-muted);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4) var(--space-5);
+}
+
+.clarify-choice {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: 12.5px;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.clarify-choice-label {
+    line-height: 1.3;
+}
+
+.clarify-answer,
+.followup-question,
+.reject-feedback-textarea {
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--surface);
+    border: var(--border-w) solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4) var(--space-5);
+    resize: vertical;
+    min-height: 72px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Follow-up questions are a paragraph with context, not a one-liner —
+ * give the composer real room (still user-resizable via resize:
+ * vertical from the shared rule above). */
+.followup-question {
+    min-height: 200px;
+}
+
+.clarify-answer:focus,
+.followup-question:focus,
+.reject-feedback-textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 var(--border-w-strong) var(--info-bg);
+}
+
+.clarify-remember {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: 12px;
+    color: var(--text2);
+    cursor: pointer;
+}
+
+.clarify-remember-label {
+    user-select: none;
+}
+
+/* Why a Submit failed, said in the modal. Without it a 404 / 409 / 500
+ * all looked identical to a dead button — the operator's report was
+ * literally "nothing happens when I click submit". */
+.clarify-error {
+    margin: var(--space-2) 0 0;
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-w) solid rgba(248, 113, 113, 0.4);
+    border-radius: var(--radius-sm, 4px);
+    background: var(--danger-bg, rgba(248, 113, 113, 0.12));
+    color: var(--danger);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.btn-row.clarify-actions,
+.btn-row.followup-actions,
+.btn-row.reject-feedback-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-4);
+    margin-top: var(--space-2);
+}
+
+/* Primary / secondary button modifiers used by the Phase 5 modals.
+ * The base `button` rule above already paints the secondary state;
+ * the .btn-approve modifier promotes a button to the accent fill the
+ * rest of the board uses for primary actions. */
+.btn.btn-approve {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.btn.btn-approve:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+.btn.btn-reject {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: #fff;
+}
+
+.btn.btn-reject:hover {
+    background: #991b1b;
+    border-color: #991b1b;
+}
+
+.btn.btn-skip {
+    background: var(--surface);
+    border-color: var(--border-strong);
+    color: var(--text2);
+}
+
+.btn.btn-skip:hover {
+    background: var(--surface-muted);
+    border-color: var(--text-muted);
+}
+
+/* ── Investigation follow-up thread list ─────────────────────────────── */
+.followup-thread {
+    max-height: 280px;
+    overflow-y: auto;
+    background: var(--surface-muted);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4) var(--space-5);
+}
+
+.followup-turn-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.followup-turn {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3) var(--space-4);
+    background: var(--surface);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--radius-md);
+}
+
+.followup-turn--operator {
+    border-left: var(--border-w-accent) solid var(--accent);
+}
+
+.followup-turn--investigator {
+    border-left: var(--border-w-accent) solid var(--info);
+}
+
+.followup-turn-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.followup-turn-role {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.followup-turn-timestamp {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.followup-turn-content {
+    font-size: 12.5px;
+    color: var(--text);
+    line-height: 1.4;
+    white-space: pre-wrap;
+}
+
+.followup-thread-empty {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* ── Per-project notes sidebar panel (AP-VP5-013) ─────────────────────── */
+.sidebar .notes {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.notes-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.notes-panel-title {
+    margin: 0;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.notes-panel-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.notes-panel-row {
+    background: var(--surface);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--card-padding-y) var(--card-padding-x);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    box-shadow: var(--shadow-soft);
+}
+
+.notes-panel-body {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.notes-panel-body p {
+    margin: 0 0 var(--space-2);
+}
+
+.notes-panel-body h3,
+.notes-panel-body h4,
+.notes-panel-body h5,
+.notes-panel-body h6 {
+    margin: 0 0 var(--space-2);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.notes-panel-body ul {
+    margin: 0 0 var(--space-2);
+    padding-left: var(--space-8);
+}
+
+.notes-panel-empty {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: var(--space-3) 0;
+}
+
+.notes-panel-composer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    background: var(--surface-muted);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4) var(--space-5);
+    margin-bottom: var(--space-3);
+}
+
+.notes-panel-composer-title,
+.notes-panel-composer-content,
+.notes-panel-edit-input {
+    font: inherit;
+    font-size: 12px;
+    color: var(--text);
+    background: var(--surface);
+    border: var(--border-w) solid var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.notes-panel-composer-content,
+.notes-panel-edit-input {
+    min-height: 56px;
+    resize: vertical;
+}
+
+.notes-panel-composer-title:focus,
+.notes-panel-composer-content:focus,
+.notes-panel-edit-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 var(--border-w-strong) var(--info-bg);
+}
+
+.notes-panel-action {
+    font-size: 11px;
+    padding: var(--space-1) var(--space-4);
+}
+
+.notes-panel-action--new {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.notes-panel-action--new:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+.notes-panel-action--save {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.notes-panel-action--save:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+.notes-panel-action--delete {
+    color: var(--danger);
+}
+
+.notes-panel-action--delete:hover {
+    border-color: var(--danger);
+}
+
+/* ── AP-IFV-005 — shared modal chrome ──────────────────────────────────
+ *
+ * The 11 modals under `hosts/board-ui/client/modals/` (new-project,
+ * edit-project, new-plan, clarify, diff-review, investigate,
+ * review-report, notes, reject, worker-log, interrupt-retry) historically
+ * each painted their own panel chrome with module-specific class names
+ * (`.new-project-modal`, `.rr-footer`, `.modal--worker-log`, …). The
+ * structural rhythm — backdrop, surface panel, header row with optional
+ * close-X, scrollable body, right-aligned footer button row — was the
+ * same across all of them, but the CSS was either missing or duplicated.
+ *
+ * This block hoists the rhythm into one shared `.modal-chrome` family
+ * keyed off the existing :root tokens (no new tokens introduced — the
+ * AP-IFV-004 hoist already covers the values). Per-modal modules opt in
+ * by adding the structural class alongside their existing class names
+ * (additive — tests query by data-attribute and stay green). The
+ * existing `.overlay` / `.panel` base rules above remain the canonical
+ * backdrop/panel for the Phase-5 modals (clarify, reject-feedback,
+ * followup) that already used them; the new `.modal-chrome` slots layer
+ * on top so the entire 11-modal family reads identically without
+ * touching the Phase-5 selectors.
+ *
+ * The kept-for-compat alias classes below (`.modal`, `.modal-body`,
+ * `.modal-actions`, `.modal-title`, `.modal-message`, `.modal-button`,
+ * `.modal-textarea`, `.modal-label`, plus the per-modal class names
+ * `.np-footer`, `.rr-footer`, etc.) inherit from the same tokens so
+ * modals that haven't been migrated to the chrome classes (or that
+ * carry both during the sweep) still render correctly.
+ */
+
+/* Backdrop. Mirrors `.overlay` above so a modal can use either selector;
+ * the modal markup carries `class="modal-chrome__overlay overlay"` so
+ * existing CSS targeting `.overlay` keeps applying.  */
+.modal-chrome__overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--overlay-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--overlay-z);
+    padding: var(--overlay-padding);
+    backdrop-filter: blur(var(--overlay-blur));
+}
+
+.modal-chrome__overlay[hidden],
+.modal-chrome__overlay.hidden {
+    display: none;
+}
+
+/* Panel surface. Matches `.panel` (light bg, border, modal radius) with
+ * an explicit `overflow: hidden` so the body is the only scroll
+ * container — keeps the header + footer pinned during scroll without
+ * any per-modal `position: sticky` rules. */
+.modal-chrome {
+    background: var(--bg2);
+    border: var(--border-w) solid var(--border2);
+    border-radius: var(--panel-radius);
+    box-shadow: var(--shadow-card);
+    width: 95vw;
+    max-width: var(--panel-max-width);
+    max-height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Header row — title on the left, optional close-X on the right.
+ * Padding mirrors `.panel-footer` (so header + footer read as matched
+ * rails); the bottom border is the same hairline used elsewhere. */
+.modal-chrome__header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+    padding: var(--panel-footer-padding-y) var(--panel-footer-padding-x);
+    border-bottom: var(--border-w) solid var(--border);
+    flex-shrink: 0;
+}
+
+.modal-chrome__title {
+    margin: 0;
+    flex: 1;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text);
+}
+
+/* Close X. Right-aligned by virtue of the title carrying `flex: 1`.
+ * Same `--surface` chip as the v2 secondary button so it reads as a
+ * subtle affordance rather than an action button. */
+.modal-chrome__close {
+    appearance: none;
+    flex-shrink: 0;
+    background: transparent;
+    border: var(--border-w) solid transparent;
+    color: var(--text2);
+    font-size: 16px;
+    line-height: 1;
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease;
+}
+
+.modal-chrome__close:hover {
+    background: var(--bg3);
+    color: var(--text);
+}
+
+/* Body — the only scrollable surface. `flex: 1` so it consumes the
+ * residual height between header + footer; `overflow-y: auto` so long
+ * content paginates inside the modal rather than the viewport. */
+.modal-chrome__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--panel-body-padding);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+/* Footer — right-aligned button row, matched padding to `.modal-chrome__header`. */
+.modal-chrome__footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--panel-footer-padding-y) var(--panel-footer-padding-x);
+    border-top: var(--border-w) solid var(--border);
+    flex-shrink: 0;
+}
+
+/* ── Compat: existing per-modal class names ────────────────────────────
+ *
+ * These alias selectors let the existing modal markup render correctly
+ * even before its `.modal-chrome*` classes are wired up. Each one maps
+ * onto the same token-driven values as the canonical chrome above.
+ */
+
+/* `.modal` is the root used by interrupt-retry, worker-log, diff-review,
+ * notes-modal, investigate (mounted into `#overlay-root`). Treat it as a
+ * `.modal-chrome` panel with the same chrome geometry. */
+.modal {
+    background: var(--bg2);
+    border: var(--border-w) solid var(--border2);
+    border-radius: var(--panel-radius);
+    box-shadow: var(--shadow-card);
+    width: 95vw;
+    max-width: var(--panel-max-width);
+    max-height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* The diff-review modal benefits from the wider panel — long unified
+ * diffs read better at the full max-width than the inset Phase-5
+ * widths. Worker-log + notes-modal share the same widescreen footprint. */
+.modal--diff-review,
+.modal--worker-log,
+.modal--notes,
+.modal--investigate {
+    max-width: var(--panel-max-width);
+}
+
+.modal--interrupt-retry {
+    max-width: var(--modal-panel-max-width);
+}
+
+.modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--panel-body-padding);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text);
+}
+
+.modal-message {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.55;
+}
+
+.modal-label {
+    display: block;
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: var(--space-3);
+}
+
+.modal-textarea {
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--surface);
+    border: var(--border-w) solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4) var(--space-5);
+    resize: vertical;
+    min-height: 96px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.modal-textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 var(--border-w-strong) var(--info-bg);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--space-4);
+    margin-top: var(--space-6);
+}
+
+.modal-button {
+    appearance: none;
+    border: var(--border-w) solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    padding: var(--space-2) var(--space-5);
+    border-radius: var(--radius-md);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.modal-button:hover {
+    background: var(--surface-muted);
+    border-color: var(--text-muted);
+}
+
+.modal-button--confirm {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.modal-button--confirm:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+/* `.np-*` — new-project / new-plan / edit-project state-body family.
+ * `.rr-*` — review-report state-body family. Both render their state
+ * bodies inside a `<section class="np-state">` / `<section class="rr-state">`
+ * with a heading, form rows, and a `.np-footer` / `.rr-footer` action
+ * row. The shared values below paint them with the same rhythm as the
+ * `.modal-chrome__body` / `.modal-chrome__footer` slots — the section
+ * itself is the body, the footer is the trailing action row.
+ */
+.np-state,
+.rr-state {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--panel-body-padding);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+.np-state > h3,
+.rr-state > h3 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text);
+}
+
+/* Report body: a <pre> so markdown/plain text keeps its line structure,
+ * but WRAPPED — investigator reports carry long prose lines, and the
+ * default `white-space: pre` forced horizontal scrolling across the
+ * whole modal. `anywhere` also breaks unbroken tokens (long paths /
+ * URLs) rather than letting one of them re-widen the pane. */
+.rr-report-content {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    overflow-x: hidden;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text);
+}
+
+.np-footer,
+.rr-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--panel-footer-padding-y) var(--panel-footer-padding-x);
+    border-top: var(--border-w) solid var(--border);
+    margin: 0 calc(-1 * var(--panel-body-padding))
+        calc(-1 * var(--panel-body-padding));
+    flex-shrink: 0;
+    background: var(--bg2);
+}
+
+.np-button,
+.rr-button {
+    appearance: none;
+    border: var(--border-w) solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    padding: var(--space-2) var(--space-5);
+    border-radius: var(--radius-md);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.np-button:hover,
+.rr-button:hover {
+    background: var(--surface-muted);
+    border-color: var(--text-muted);
+}
+
+.np-button[data-action='submit'],
+.np-button[data-action='approve-plan'],
+.np-button[data-action='save'],
+.np-button[data-action='create'],
+.rr-button[data-action='implement'] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.np-button[data-action='submit']:hover,
+.np-button[data-action='approve-plan']:hover,
+.np-button[data-action='save']:hover,
+.np-button[data-action='create']:hover,
+.rr-button[data-action='implement']:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+.np-spinner,
+.rr-spinner {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    padding: var(--space-3) 0;
+}
+
+/* ── Project-modal form-row family (new-project + edit-project) ────────
+ *
+ * Ports the V1 form rhythm onto the v2 modal markup. Each row is
+ * `<div class="form-row" data-row="…"><label class="form-label">…</label>
+ * <input/textarea/…/></div>`. The label is small-caps uppercase (v1
+ * convention); the input or sub-control consumes the rest of the row.
+ *
+ * The title row carries `data-row="title"` and renders title + abbr
+ * side by side — the abbr lives in a fixed narrow column so the modal
+ * matches V1's project-form layout.
+ */
+.form-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.form-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.form-row > input[type='text'],
+.form-row > textarea {
+    appearance: none;
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--surface);
+    border: var(--border-w) solid var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.4;
+}
+
+.form-row > textarea {
+    min-height: 72px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.form-row > input[type='text']:focus,
+.form-row > textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-ring, rgba(99, 102, 241, 0.2));
+}
+
+/* Title + abbr row — `data-row="title"` has the V1 layout where the
+ * title input takes the available width and the abbreviation sits to
+ * the right in a fixed narrow column. The label spans the full row
+ * above both inputs.
+ */
+.form-row[data-row='title'] {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+        'label label'
+        'name  abbr';
+    column-gap: var(--space-3);
+    row-gap: var(--space-2);
+}
+
+.form-row[data-row='title'] > .form-label {
+    grid-area: label;
+}
+
+.form-row[data-row='title'] > input[data-input='name'] {
+    grid-area: name;
+}
+
+.form-row[data-row='title'] > input[data-input='abbr'] {
+    grid-area: abbr;
+    width: 56px;
+    text-align: center;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+/* ── Colour-swatch row ────────────────────────────────────────────────
+ *
+ * Seven swatches in a flex row, each a rounded square the operator
+ * clicks to pick the project's accent colour. The selected swatch gets
+ * a darker ring to distinguish it without changing its own colour.
+ */
+.color-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.color-swatch {
+    appearance: none;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-md);
+    border: var(--border-w) solid transparent;
+    background-color: currentColor;
+    cursor: pointer;
+    padding: 0;
+    transition: transform 80ms ease, box-shadow 80ms ease;
+}
+
+/* The swatch element carries its hex on `value`, but CSS attribute
+ * selectors only fire against attributes, not properties. The render
+ * loop also sets `data-swatch="<hex>"` so we can drive the background
+ * here without per-swatch inline styles.
+ */
+.color-swatch[data-swatch='#7c6af7'] { background-color: #7c6af7; }
+.color-swatch[data-swatch='#38bdf8'] { background-color: #38bdf8; }
+.color-swatch[data-swatch='#34d399'] { background-color: #34d399; }
+.color-swatch[data-swatch='#fbbf24'] { background-color: #fbbf24; }
+.color-swatch[data-swatch='#f87171'] { background-color: #f87171; }
+.color-swatch[data-swatch='#c084fc'] { background-color: #c084fc; }
+.color-swatch[data-swatch='#fb923c'] { background-color: #fb923c; }
+
+.color-swatch:hover {
+    transform: scale(1.05);
+}
+
+.color-swatch.selected,
+.color-swatch[aria-pressed='true'] {
+    box-shadow:
+        0 0 0 2px var(--bg2),
+        0 0 0 4px var(--text);
+}
+
+/* ── Repo-row list ────────────────────────────────────────────────────
+ *
+ * One row per repo: short ID input, display-name input, full git URL
+ * input, then a red remove-X. Three input columns stretch fluidly; the
+ * X stays a fixed width. The "+ Add repo" button rendered after the
+ * list inherits from `.np-button`.
+ */
+.repo-rows {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.repo-row {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr 2.4fr auto;
+    gap: var(--space-3);
+    align-items: center;
+}
+
+.repo-row > input[type='text'] {
+    appearance: none;
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--surface);
+    border: var(--border-w) solid var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+}
+
+.repo-row > input[type='text']:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.repo-row > input[data-field='id'] {
+    font-family: var(--mono);
+}
+
+.np-button--remove {
+    /* Red ✕ delete button at the right edge of every repo row.
+     * Padding kept tight so it lines up with the input row height. */
+    appearance: none;
+    background: transparent;
+    border: var(--border-w) solid transparent;
+    color: var(--danger);
+    font-size: 16px;
+    line-height: 1;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.np-button--remove:hover {
+    background: var(--danger-bg, rgba(248, 113, 113, 0.1));
+    color: var(--danger);
+}
+
+/* Optional helper text under a label (e.g. the repos-section description
+ * in V1's modal). Rendered as a `<p>` immediately after the label. */
+.form-row > .form-help {
+    margin: 0;
+    margin-top: calc(-1 * var(--space-1));
+    font-size: 11.5px;
+    color: var(--text-muted);
+    line-height: 1.45;
+}
+
+/* Select dropdowns inside form rows (Plan type, Target repo). Matches
+ * the same surface treatment as text inputs so the modal reads as one
+ * coherent form rather than a mix of native and custom controls. */
+.form-row > select {
+    appearance: none;
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--surface);
+    border: var(--border-w) solid var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    padding-right: calc(var(--space-4) + 16px);
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.4;
+    cursor: pointer;
+    /* Chevron rendered as an inline SVG via background-image so the
+     * appearance: none reset above doesn't drop the dropdown arrow.
+     * Stroke colour matches `--text-muted` for the muted-grey look. */
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%239ca3af' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right var(--space-4) center;
+}
+
+.form-row > select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-ring, rgba(99, 102, 241, 0.2));
+}
+
+/* ── New-plan modal — subtitle + checkbox rows + auto-trigger panel ────
+ *
+ * V1's new-plan brief renders a short subtitle under the heading
+ * explaining the decompose-on-submit behaviour, two plain checkbox rows
+ * (deploy-after-merge, skip-plan-review), and a highlighted panel for
+ * the auto-trigger checkbox so the operator notices the cross-task
+ * implication.
+ */
+.np-subtitle {
+    margin: calc(-1 * var(--space-2)) 0 0 0;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+.checkbox-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    cursor: pointer;
+    font-size: 12.5px;
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.checkbox-row > input[type='checkbox'] {
+    flex-shrink: 0;
+    margin-top: 2px;
+    width: 14px;
+    height: 14px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.checkbox-label {
+    display: inline;
+}
+
+.checkbox-label-primary {
+    color: var(--text);
+}
+
+.checkbox-label-helper {
+    color: var(--text-muted);
+    font-size: 11.5px;
+}
+
+/* The auto-trigger row sits inside a tinted card so the cross-task
+ * behaviour reads as something to think about before flipping on.
+ * Matches the v1 light-blue highlight; falls back to a faint accent
+ * tint if `--accent-tint` isn't defined elsewhere in the cascade. */
+.highlighted-checkbox-panel {
+    background: var(--accent-tint, rgba(99, 102, 241, 0.08));
+    border: var(--border-w) solid var(--accent-tint-border, rgba(99, 102, 241, 0.25));
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+}
+
+.highlighted-checkbox-panel .checkbox-label-helper {
+    display: block;
+    margin-top: var(--space-1);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+/* Conventions sub-section in the new-plan brief. Reads as a continuation
+ * of the form rather than a distinct fieldset — same form-row inputs as
+ * the rest of the modal, with a small heading + helper line to mark the
+ * sub-section. The outer `.np-collapsible` wrapper now owns the visual
+ * separation (border + spacing); this section stays a plain flex
+ * container of form-rows.
+ */
+.np-conventions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.np-conventions__heading {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    color: var(--text);
+}
+
+.np-conventions__help {
+    /* Helper line under the heading: same muted treatment as `.form-help`
+     * but pinned tight to the heading rather than the negative-margin
+     * offset that helper text under a `.form-label` uses. */
+    margin: calc(-1 * var(--space-3)) 0 0 0;
+}
+
+/* ── Collapsible `<details>` sub-sections in the new-plan modal ────────
+ *
+ * Wraps the Advanced-options block and the Conventions block so they
+ * default to collapsed (saving vertical real estate) and the operator
+ * can open them on demand. Native `<details>`/`<summary>` handles the
+ * toggle so the open/closed state survives without any custom JS.
+ *
+ * The summary row reads as a button-like label with a small chevron
+ * rotating on open. Hairline border at the top separates the section
+ * from the preceding form rows.
+ */
+.np-collapsible {
+    border-top: var(--border-w) solid var(--border);
+    padding-top: var(--space-4);
+    /* When open, lay out summary + inner rows with the same vertical
+     * rhythm as the outer modal body so the disclosure reads as a
+     * native section continuation. */
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.np-collapsible__summary {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    cursor: pointer;
+    user-select: none;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    color: var(--text);
+    /* Remove the browser default disclosure triangle so the chevron
+     * below is the only indicator. */
+    list-style: none;
+    padding: var(--space-2) 0;
+}
+
+.np-collapsible__summary::-webkit-details-marker {
+    display: none;
+}
+
+.np-collapsible__summary::before {
+    content: '';
+    display: inline-block;
+    width: 10px;
+    height: 6px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: center;
+    transform: rotate(-90deg);
+    transition: transform 120ms ease;
+}
+
+.np-collapsible[open] > .np-collapsible__summary::before {
+    transform: rotate(0deg);
+}
+
+.np-collapsible__summary:hover {
+    color: var(--accent);
+}
+
+/* No margin between summary and the first body row — the parent
+ * `.np-collapsible` flex `gap` (above) supplies the spacing when open
+ * and the summary collapses to its own size when closed. */
+
+/* ── AP-FP-008 — `.modal-overlay` / `.modal-card` chrome ───────────────
+ *
+ * The AP-FP-006 create-task and AP-FP-007 edit-task overlay modules
+ * wrap their panels in `.modal-overlay` (backdrop) + `.modal-card`
+ * (panel surface). The existing `.modal-chrome` family covers the
+ * older modal wrappers, but neither selector existed in this file —
+ * which left those two overlays rendering as unstyled DOM appended
+ * to `document.body` / `#overlay-root`. AP-FP-008 added the rules
+ * below so the wired-in modals render as centred panels over a
+ * dimmed backdrop, matching the rest of the modal family. */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--overlay-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--overlay-z);
+    padding: var(--overlay-padding);
+    backdrop-filter: blur(var(--overlay-blur));
+}
+
+.modal-overlay[hidden],
+.modal-overlay.hidden {
+    display: none;
+}
+
+.modal-card {
+    background: var(--bg2);
+    border: var(--border-w) solid var(--border2);
+    border-radius: var(--panel-radius);
+    box-shadow: var(--shadow-card);
+    width: 95vw;
+    max-width: var(--panel-max-width);
+    max-height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: var(--panel-body-padding);
+    gap: var(--space-6);
+}
+
+/* `.new-project-modal` / `.new-plan-modal` / `.edit-project-modal` /
+ * `.review-report-modal` are the per-modal root wrappers. Each one
+ * should also carry `.modal-chrome` so the panel chrome is shared, but
+ * we paint them defensively here too in case markup migration lags. */
+.new-project-modal,
+.new-plan-modal,
+.edit-project-modal,
+.review-report-modal {
+    background: var(--bg2);
+    border: var(--border-w) solid var(--border2);
+    border-radius: var(--panel-radius);
+    box-shadow: var(--shadow-card);
+    width: 95vw;
+    max-width: var(--panel-max-width);
+    max-height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Report + chat side by side, mirroring `.plan-modal--split`. The report
+   column keeps its own scroll so a long investigation does not push the
+   chat composer off-screen; the height is fixed while the pane is open so
+   the composer pins to the bottom instead of floating under a short
+   thread. `max-width` has to be overridden too — the shared rule above
+   caps every modal at `--panel-max-width`, which is narrower than this. */
+.review-report-modal--split {
+    flex-direction: row;
+    width: min(1400px, 94vw);
+    max-width: min(1400px, 94vw);
+    height: calc(100vh - 40px);
+}
+.review-report-modal--split > .rr-state {
+    flex: 1 1 55%;
+    min-width: 0;
+}
+.rr-chat-pane {
+    flex: 1 1 45%;
+    min-width: 320px;
+    border-left: var(--border-w) solid var(--border);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+@media (max-width: 1000px) {
+    .review-report-modal--split {
+        flex-direction: column;
+    }
+    .rr-chat-pane {
+        border-left: none;
+        border-top: var(--border-w) solid var(--border);
+        min-height: 280px;
+    }
+}
+
+/* The diff-review header (`.diff-review-header`) is the modal-chrome
+ * header row. The hunk-nav buttons and counter inherit from the
+ * `.diff-hunk-nav` rules above; here we add padding so the header reads
+ * as a consistent rail across modals. */
+.diff-review-header {
+    padding: var(--panel-footer-padding-y) var(--panel-footer-padding-x);
+    border-bottom: var(--border-w) solid var(--border);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+}
+
+.diff-review-title {
+    margin: 0;
+    flex: 1;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text);
+}
+
+.diff-review-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--panel-body-padding);
+}
+
+/* Two-pane layout: file list on the left, file content on the right.
+   Mirrors the v1 board's review modal. The left pane keeps a fixed
+   minimum width so long paths don't squeeze the content pane. */
+.diff-review-body--two-pane {
+    display: grid;
+    grid-template-columns: minmax(220px, 280px) 1fr;
+    gap: var(--space-3);
+    padding: 0;
+    overflow: hidden;
+}
+.diff-review-file-list {
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+    background: var(--bg2);
+    padding: var(--space-2) 0;
+}
+.diff-review-file-content {
+    overflow-y: auto;
+    padding: var(--space-3);
+}
+
+.diff-review-file-row {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1.4;
+}
+.diff-review-file-row:hover {
+    background: var(--bg3, var(--bg2));
+}
+.diff-review-file-row--selected {
+    background: var(--bg3, var(--bg2));
+    border-left: 3px solid var(--accent, #2563eb);
+    padding-left: 9px;
+}
+.diff-review-file-row__path {
+    font-family: var(--mono);
+    font-size: 12px;
+    word-break: break-all;
+}
+.diff-review-file-row__stats {
+    display: flex;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+}
+.diff-review-file-row__add { color: #4ade80; }
+.diff-review-file-row__del { color: #f87171; }
+
+.diff-review-file-header {
+    margin: 0 0 var(--space-2);
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+    word-break: break-all;
+}
+.diff-review-hunk {
+    margin-bottom: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+.diff-review-hunk-header {
+    padding: 4px 10px;
+    background: var(--bg3, var(--bg2));
+    color: var(--text-muted, var(--text3));
+    font-family: var(--mono);
+    font-size: 11px;
+}
+.diff-review-hunk-lines {
+    margin: 0;
+    padding: 0;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.5;
+    background: var(--bg);
+}
+.diff-review-line {
+    display: block;
+    padding: 0 10px;
+    white-space: pre;
+    overflow-x: auto;
+}
+.diff-review-line--add {
+    background: rgba(74, 222, 128, 0.12);
+    color: #166534;
+}
+.diff-review-line--del {
+    background: rgba(248, 113, 113, 0.12);
+    color: #991b1b;
+}
+.diff-review-line--ctx {
+    color: var(--text);
+}
+
+.diff-review-close {
+    flex-shrink: 0;
+    margin-left: var(--space-3);
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text2, var(--text));
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+}
+.diff-review-close:hover {
+    background: var(--bg3, var(--bg2));
+    border-color: var(--border);
+    color: var(--text);
+}
+
+.diff-review-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--panel-footer-padding-y) var(--panel-footer-padding-x);
+    border-top: var(--border-w) solid var(--border);
+    flex-shrink: 0;
+}
+
+/* Worker-log: dark monospace body, mirrors the v1 worker-log surface. */
+.worker-log-header {
+    padding: var(--panel-footer-padding-y) var(--panel-footer-padding-x);
+    border-bottom: var(--border-w) solid var(--border);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+}
+
+.worker-log-title {
+    margin: 0;
+    flex: 1;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text);
+}
+
+.worker-log-close {
+    /* Inherits from `button` base rule above; close-X positioning lives
+     * in the header flex layout (flex-shrink: 0 keeps it pinned right). */
+    flex-shrink: 0;
+}
+
+.worker-log-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-5) var(--panel-footer-padding-x);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.45;
+    color: var(--text);
+    background: var(--surface);
+}
+
+.worker-log-line {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.worker-log-status {
+    padding: var(--space-2) var(--panel-footer-padding-x);
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    border-bottom: var(--border-w) solid var(--border);
+    flex-shrink: 0;
+}
+
+.worker-log-status--error {
+    color: var(--danger);
+}
+
+/* Notes modal / investigate modal: when board.ts mounts these into
+ * `#overlay-root` as `.modal modal--notes` / `.modal modal--investigate`,
+ * the inner list/form needs the same body padding as the rest of the
+ * family. */
+.modal--notes .notes-modal-list,
+.modal--notes .notes-modal-create,
+.modal--investigate .investigate-create-form,
+.modal--investigate .investigate-list {
+    margin: var(--panel-body-padding);
+}
+
+/* Reject modal: it already wraps in `.overlay reject-overlay` + a
+ * `.overlay-panel reject-panel`. Style the panel + actions row so the
+ * close-button placement and footer rhythm match the rest of the family. */
+.reject-panel {
+    background: var(--bg2);
+    border: var(--border-w) solid var(--border2);
+    border-radius: var(--panel-radius);
+    box-shadow: var(--shadow-card);
+    width: 95vw;
+    max-width: var(--modal-panel-max-width);
+    max-height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: var(--panel-body-padding);
+    gap: var(--space-5);
+}
+
+.reject-title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text);
+}
+
+.reject-help {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.45;
+}
+
+.reject-reason {
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--surface);
+    border: var(--border-w) solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4) var(--space-5);
+    resize: vertical;
+    min-height: 96px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.reject-reason:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 var(--border-w-strong) var(--info-bg);
+}
+
+.reject-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--space-4);
+    margin-top: var(--space-2);
+}
+
+/* ---------- Workspace repos modal ---------------------------------------- */
+
+.repos-modal {
+    width: min(900px, 92vw);
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.repos-modal__body {
+    overflow-y: auto;
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.repo-add-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+.repo-add-tabs {
+    display: flex;
+    gap: 2px;
+    border-bottom: 1px solid var(--border2);
+}
+.repo-add-tab {
+    background: transparent;
+    border: 0;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+.repo-add-tab:hover {
+    color: var(--text);
+}
+.repo-add-tab--active {
+    color: var(--text);
+    border-bottom-color: var(--accent, #2563eb);
+}
+.repo-add-form {
+    border: 1px dashed var(--border2);
+    border-radius: var(--panel-radius);
+    padding: var(--space-3);
+    background: var(--bg1, var(--bg2));
+}
+.repo-add-form__hint {
+    margin: 0 0 var(--space-2);
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.45;
+}
+.repo-add-form__field--full {
+    grid-column: 1 / -1;
+}
+.repo-add-form__field textarea,
+.repo-add-form__field select {
+    padding: 6px 8px;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    background: var(--bg2);
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+}
+.repo-add-form__heading {
+    margin: 0 0 var(--space-2);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+.repo-add-form__grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr 0.7fr;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+.repo-add-form__field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--muted);
+}
+.repo-add-form__field input {
+    padding: 6px 8px;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    background: var(--bg2);
+    color: var(--text);
+    font-size: 13px;
+}
+
+.repos-empty {
+    padding: var(--space-4);
+    color: var(--muted);
+    text-align: center;
+    font-style: italic;
+}
+
+.repo-row {
+    border: 1px solid var(--border2);
+    border-radius: var(--panel-radius);
+    padding: var(--space-3);
+    background: var(--bg2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+.repo-row__head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+/* "<account> - " before the repo name. Deliberately NOT bold and in the
+   muted colour: the account qualifies the row, the name is what the
+   operator scans for, and making both bold would turn every mapped row
+   into one long emphasised string. `flex: 0 0 auto` keeps it at its
+   natural width so the name keeps the flex:1 that pushes status right. */
+.repo-row__account {
+    flex: 0 0 auto;
+    font-weight: 400;
+    font-size: 13px;
+    color: var(--text3);
+}
+
+.repo-row__name {
+    flex: 1;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text);
+}
+.repo-row__status {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--bg1, var(--bg2));
+}
+.repo-row__status--ok {
+    color: rgba(34, 197, 94, 0.85);
+    border: 1px solid rgba(34, 197, 94, 0.4);
+}
+.repo-row__status--clone-failed,
+.repo-row__status--sync-failed {
+    color: rgba(248, 113, 113, 0.85);
+    border: 1px solid rgba(248, 113, 113, 0.4);
+}
+.repo-row__status--unknown {
+    color: var(--muted);
+    border: 1px solid var(--border2);
+}
+.repo-row__meta {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--font-mono, monospace);
+}
+.repo-row__error {
+    font-size: 12px;
+    color: rgba(248, 113, 113, 0.9);
+    background: rgba(248, 113, 113, 0.08);
+    padding: 6px 8px;
+    border-radius: 4px;
+}
+.repo-row__actions {
+    display: flex;
+    gap: var(--space-2);
+    justify-content: flex-end;
+}
+.repo-row__edit {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+/* ---------- Project modal: workspace repo multi-select ------------------- */
+
+.repo-multi-select {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border: 1px solid var(--border2);
+    border-radius: var(--panel-radius);
+    padding: var(--space-3);
+    background: var(--bg2);
+    max-height: 320px;
+    overflow-y: auto;
+}
+.repo-multi-select__row {
+    display: grid;
+    grid-template-columns: 18px 1fr auto;
+    gap: var(--space-2);
+    align-items: center;
+    padding: 4px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.repo-multi-select__row:hover {
+    background: var(--bg3, var(--bg1, var(--bg2)));
+}
+.repo-multi-select__label {
+    font-size: 13px;
+    color: var(--text);
+}
+.repo-multi-select__url {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--font-mono, monospace);
+}
+
+/* ---------- Tasks section (flat list, section-list layout) -------------- */
+
+#all-tasks .task-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+.task-plan-heading {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted, var(--text2));
+    padding: var(--space-2) var(--space-3) 0;
+    margin-top: var(--space-2);
+    cursor: pointer;
+    user-select: none;
+}
+.task-plan-heading:first-child {
+    margin-top: 0;
+}
+.task-plan-heading:hover .task-plan-heading__label {
+    color: var(--text1, inherit);
+}
+.task-plan-heading__chevron {
+    width: 1em;
+    flex: none;
+}
+.task-plan-heading__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.task-plan-heading__count {
+    flex: none;
+    font-weight: 500;
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0 var(--space-2);
+}
+.task-plan-heading--collapsed {
+    opacity: 0.85;
+}
+.tasks-fold-all {
+    margin-left: auto;
+    font-size: 11px;
+    padding: 1px var(--space-2);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text2);
+    cursor: pointer;
+}
+.tasks-fold-all:hover {
+    color: var(--text1, inherit);
+    border-color: var(--border-strong, var(--border));
+}
+
+/* ---------------------------------------------------------------------
+ * Chat modal (Phase 1 read-only Q&A)
+ * --------------------------------------------------------------------- */
+
+.chat-modal {
+    width: min(1100px, 95vw);
+    height: 80vh;
+    max-height: 80vh;
+}
+
+.chat-modal__body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.chat-modal__sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    border-right: var(--border-w) solid var(--border);
+    padding: var(--space-4);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.chat-modal__sidebar h4 {
+    margin: 0 0 var(--space-2);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text2);
+}
+
+.chat-modal__new {
+    padding: var(--space-3);
+    background: var(--surface-muted);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.chat-modal__field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.chat-modal__field-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text2);
+}
+
+.chat-modal__select {
+    width: 100%;
+    padding: var(--space-2);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+}
+
+.chat-modal__new-btn {
+    margin-top: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--accent, #3b82f6);
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.chat-modal__session-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.chat-modal__session {
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.chat-modal__session:hover {
+    background: var(--surface-muted);
+}
+
+.chat-modal__session--active {
+    background: var(--surface-muted);
+    box-shadow: inset 3px 0 0 var(--accent, #3b82f6);
+}
+
+.chat-modal__session-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-modal__session-meta {
+    font-size: 11px;
+    color: var(--text2);
+}
+
+.chat-modal__empty {
+    padding: var(--space-3);
+    color: var(--text2);
+    font-size: 12px;
+    font-style: italic;
+}
+
+.chat-modal__thread {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    /* min-height: 0 is load-bearing (same bug as the scoped pane): a
+       flex child never shrinks below its content without it — a long
+       thread overflowed the modal, clipped without a scrollbar, and
+       pushed the composer out of view. */
+    min-height: 0;
+    overflow: hidden;
+}
+
+.chat-modal__blank {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text2);
+    font-size: 14px;
+}
+
+.chat-modal__banner {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    background: var(--surface-muted);
+    border-bottom: var(--border-w) solid var(--border);
+    font-size: 12px;
+}
+
+.chat-modal__banner-left {
+    color: var(--text2);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-modal__banner-pr {
+    color: var(--accent, #3b82f6);
+    font-weight: 600;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+.chat-modal__banner-pr:hover {
+    text-decoration: underline;
+}
+
+.chat-modal__banner-pr-btn {
+    padding: var(--space-1) var(--space-3);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--accent, #3b82f6);
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.chat-modal__banner-pr-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.chat-modal__messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+/* System progress note — pipeline milestone posted by the board into
+ * a chat-originated thread. Centred, muted, no bubble chrome so it
+ * reads as a status line between the conversational turns. */
+.chat-modal__note {
+    align-self: center;
+    max-width: 90%;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text2);
+    background: var(--surface-muted);
+    border-radius: var(--radius-pill);
+    padding: var(--space-1) var(--space-3);
+    margin: var(--space-1) 0;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.chat-modal__note-action {
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--accent, #3b82f6);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px var(--space-2);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.chat-modal__note-action:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* Proposal card — rendered under an assistant message that emitted a
+ * PROPOSE_TASK block. Reads as a distinct actionable callout, not just
+ * more chat text. */
+.chat-modal__proposal {
+    margin-top: var(--space-3);
+    border: 1px solid var(--accent, #3b82f6);
+    border-radius: var(--radius-md);
+    background: var(--bg);
+    padding: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.chat-modal__proposal-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.chat-modal__proposal-type {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-pill);
+    background: var(--accent, #3b82f6);
+    color: white;
+    flex-shrink: 0;
+}
+
+.chat-modal__proposal-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.chat-modal__proposal-desc {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text2);
+    white-space: pre-wrap;
+    max-height: 160px;
+    overflow-y: auto;
+}
+
+.chat-modal__proposal-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.chat-modal__proposal-btn {
+    padding: var(--space-2) var(--space-4);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--accent, #3b82f6);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.chat-modal__proposal-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+    background: var(--surface-muted);
+    color: var(--text2);
+}
+
+.chat-modal__message {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    max-width: 85%;
+}
+
+.chat-modal__message--user {
+    align-self: flex-end;
+    background: var(--accent, #3b82f6);
+    color: white;
+}
+
+.chat-modal__message--user .chat-modal__role {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.chat-modal__message--assistant {
+    align-self: flex-start;
+    background: var(--surface-muted);
+    color: var(--text);
+    max-width: 95%;
+}
+
+.chat-modal__message--pending {
+    font-style: italic;
+    color: var(--text2);
+}
+
+.chat-modal__role {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text2);
+}
+
+.chat-modal__body-text {
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.chat-modal__body-text p {
+    margin: 0 0 var(--space-2);
+}
+
+.chat-modal__body-text pre {
+    background: rgba(0, 0, 0, 0.05);
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    font-size: 12px;
+}
+
+.chat-modal__message--user .chat-modal__body-text pre {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.chat-modal__input-row {
+    border-top: var(--border-w) solid var(--border);
+    padding: var(--space-3);
+    display: flex;
+    gap: var(--space-2);
+    flex-shrink: 0;
+}
+
+.chat-modal__input {
+    flex: 1;
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    font-family: inherit;
+    font-size: 13px;
+    resize: vertical;
+    background: var(--bg);
+    color: var(--text);
+}
+
+.chat-modal__send-btn {
+    align-self: flex-end;
+    padding: var(--space-2) var(--space-4);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--accent, #3b82f6);
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.chat-modal__send-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.chat-modal__stop-btn {
+    background: #dc2626;
+}
+
+.chat-modal__stop-btn:hover {
+    background: #b91c1c;
+}
+
+/* ─── Attachments (migration 021) ──────────────────────────────────────
+ *
+ * Shown in the task + plan modals: a grid of existing attachments (image
+ * thumbnails / file chips, each with download + remove) above a stateless
+ * dropzone (click-to-pick / drag-drop; clipboard paste is handled at the
+ * document level while a modal is open). */
+.attachments {
+    margin-top: var(--space-8);
+}
+
+.attachments__empty {
+    color: var(--text3);
+    font-size: 13px;
+    margin: var(--space-2) 0 var(--space-4);
+}
+
+/* Produced files (migration 038) - the harvested outputs of a task,
+ * downloads rather than uploads. Separated from the operator's own
+ * attachments by a rule so the two directions never read as one list. */
+.attachments--outputs {
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-6);
+}
+
+.attachments__hint {
+    color: var(--text3);
+    font-size: 12px;
+    margin: var(--space-1) 0 var(--space-3);
+}
+
+.attachments__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    margin-bottom: var(--space-4);
+}
+
+.attachments__card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 160px;
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg2);
+    overflow: hidden;
+}
+
+.attachments__preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 110px;
+    background: var(--bg3);
+    text-decoration: none;
+}
+
+.attachments__thumb {
+    max-width: 100%;
+    max-height: 110px;
+    object-fit: contain;
+    display: block;
+}
+
+.attachments__file-icon {
+    font-size: 40px;
+    line-height: 1;
+}
+
+.attachments__meta {
+    padding: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+}
+
+.attachments__name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.attachments__name:hover {
+    text-decoration: underline;
+}
+
+.attachments__sub {
+    font-size: 11px;
+    color: var(--text3);
+}
+
+.attachments__caption {
+    font-size: 12px;
+    color: var(--text2);
+    word-break: break-word;
+}
+
+.attachments__remove {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    width: 20px;
+    height: 20px;
+    line-height: 18px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-pill);
+    background: rgba(10, 16, 32, 0.55);
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.attachments__remove:hover {
+    background: var(--red);
+}
+
+.attachments__dropzone {
+    border: var(--border-w-strong) dashed var(--border2);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    text-align: center;
+    color: var(--text3);
+    font-size: 13px;
+    transition: border-color 0.12s, background 0.12s;
+}
+
+.attachments__dropzone--over {
+    border-color: var(--accent);
+    background: var(--info-bg);
+    color: var(--text2);
+}
+
+.attachments__pick {
+    border: none;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+}
+
+/* ─── New-plan attachments (migration 021) ─────────────────────────────── */
+.np-attach-hint {
+    margin: 0 0 var(--space-3);
+    color: var(--text3);
+    font-size: 12px;
+}
+
+.np-attach-input {
+    display: none;
+}
+
+.np-attach-list {
+    list-style: none;
+    margin: var(--space-3) 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.np-attach-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg2);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: 12px;
+}
+
+.np-attach-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ─── Task instructions / remarks (migration 022) ──────────────────────── */
+.task-modal__instructions {
+    margin-top: var(--space-8);
+}
+
+.task-modal__instructions-hint,
+.task-modal__instructions-note {
+    margin: 0 0 var(--space-3);
+    color: var(--text3);
+    font-size: 12px;
+}
+
+.task-modal__instructions-input {
+    width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+    font: inherit;
+    padding: var(--space-3);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg);
+    color: var(--text);
+}
+
+.task-modal__instructions-actions {
+    margin-top: var(--space-3);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.task-modal__instructions-save {
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: #fff;
+    font: inherit;
+    font-weight: 500;
+    padding: var(--space-2) var(--space-5);
+    cursor: pointer;
+}
+
+.task-modal__instructions-save:hover {
+    background: var(--accent-hover);
+}
+
+.task-modal__instructions-readonly {
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--bg2);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+    font-size: 13px;
+    color: var(--text2);
+}
+
+/* Commit step technical failure (push/PR rejected) — the commit is local
+ * only, not on GitHub. Red so it doesn't read as a clean "Awaiting merge". */
+.parked-chip--commit-failed {
+    background: var(--red);
+    color: #fff;
+    border-color: var(--red);
+}
+
+/* ---------------------------------------------------------------------
+ * Project architecture context editor.
+ *
+ * Sizing mirrors the persona/agent MD editors: a tall monospace field,
+ * because what goes here is a page of prose rather than a form field.
+ * ------------------------------------------------------------------ */
+.project-context-panel {
+    width: min(860px, 92vw);
+    /* `height`, not `max-height`: with a max the panel is still sized by
+       its content, so `flex: 1` on the textarea resolves against
+       min-height (320px) and the modal opens at roughly half the window
+       no matter how much room there is. A real height makes the box
+       track the viewport, which is the point — this is a page of prose. */
+    height: 88vh;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.project-context__title {
+    margin: 0;
+    font-size: 15px;
+}
+
+.project-context__hint {
+    margin: 0;
+    color: var(--text2);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.project-context__input {
+    flex: 1;
+    min-height: 320px;
+    resize: vertical;
+    font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 13px;
+    line-height: 1.55;
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--text);
+}
+
+.project-context__status {
+    font-size: 12px;
+    color: var(--text2);
+    min-height: 1.2em;
+}
+
+.project-context__status--error {
+    color: var(--red);
+}

@@ -1,0 +1,22 @@
+node_modules/
+dist/
+.pipeline-workspace/
+shared/.cache/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+.env
+test/parity/board/.artefacts/
+test-results/
+playwright-report/
+/.vs
+/plan-output.json
+# Operator's own open-sourcing notes — holds a personal/work email address.
+# Ignored (not merely untracked) so a `git add docs/` can never sweep it into
+# a public export.
+docs/opensourcing.txt.txt
+# Personal Claude Code settings - machine-specific tool permissions and
+# enabled MCP servers. Was tracked by accident (2019e59); it is per-operator
+# state, not project config.
+.claude/settings.local.json

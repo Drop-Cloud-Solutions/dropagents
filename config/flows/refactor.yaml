@@ -1,0 +1,75 @@
+# AP-IFW-002 — retained flow: refactor
+#
+# Shares the implement chain. Parity expectation: the reviewer enforces
+# "no API surface change" and the tester runs the full suite. The flow
+# graph is identical; the behavioural difference lives in the agent
+# prompts, not here.
+#
+# AP-IFG-003 — start_mode derivation
+#   v1 task type: refactor (TYPE_PIPELINES["refactor"] = CLASSIC)
+#   v1 stages:    dev → review → test → commit → context-update
+#   start_mode:   auto — the flow triggers on TaskApproved, but the first
+#                 `develop` step is gated by `approval: required` below, so
+#                 the operator must Approve before the developer agent runs.
+
+on: TaskApproved
+when: task.type == "refactor"
+start_mode: auto
+# What this flow is as a task type (flow id == task type). The single
+# source for the per-type facts the pipeline used to hardcode in five
+# lists - see core/flow/task-types.ts.
+task_type:
+  label: "Refactor"
+  decomposable: true
+  writes_code: true
+  worktree: task
+  add_task: true
+  chat_proposable: true
+steps:
+  - id: develop
+    agent: developer
+    model: none
+    # Operator must explicitly Approve before the developer agent runs
+    # (mirrors implement.yaml). Without this gate the first step fires the
+    # moment the task is decomposed and the operator never sees an
+    # Approve/Skip choice — the card jumps straight from "just decomposed"
+    # to "agent in flight".
+    approval: required
+    on_success: review
+  - id: review
+    agent: reviewer
+    model: none
+    on_success: test
+    # Rejection/failure returns to the producing step with feedback.
+    on_failure: develop
+  - id: test
+    agent: tester
+    model: none
+    on_success: human-review
+    # Rejection/failure returns to the producing step with feedback.
+    on_failure: develop
+  - id: human-review
+    # Pre-commit operator gate (mirrors implement.yaml): parks the
+    # task on the worktree-diff review modal so the operator can
+    # confirm the refactor preserves behaviour before it lands. Reject
+    # routes back to develop with the operator's note threaded as
+    # rejectFeedback.
+    agent: worktree-diff-review
+    model: none
+    on_success: commit
+    on_failure: develop
+  - id: commit
+    agent: committer
+    model: none
+    on_success: merge
+    on_failure: develop
+  - id: merge
+    # `merge-auto`: auto-merged by the orchestrator once the PR exists;
+    # manual "Merge PR" remains the fallback.
+    # Without this the committer's success would emit:TaskFinished
+    # directly and the task disappeared from the board / its plan
+    # moved to Completed while the PR was still unmerged on GitHub
+    # — the operator never got a chance to land the change.
+    agent: merge-auto
+    model: none
+    on_success: emit:TaskFinished

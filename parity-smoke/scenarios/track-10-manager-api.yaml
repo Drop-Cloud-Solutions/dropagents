@@ -1,0 +1,99 @@
+# Parity scenario — track 10: manager-api parity
+#
+# Behavioural fixture: not a task-type round-trip. The contract here is
+# the manager-api HTTP surface — the read/write API by which a remote
+# operator (or sibling host) introspects and edits the pipeline's
+# canonical config (pipeline.yaml + flows/*.yaml) and the per-role agent
+# model overrides. Parity with v1 means same URL shapes, same status
+# codes, and a GET-after-PUT that observes the write.
+#
+# Loaded by scripts/parity-smoke.ts (scenarios-tracks round-trip).
+
+track: 10
+title: manager-api parity
+reference_sha: b50868495fb778dc3058e15c2501cba410a59dac
+status: green
+owner: track-10
+retained: true
+
+description: >
+  Manager-api exposes the canonical config surface (pipeline.yaml +
+  flows/*.yaml) and the per-role agent-model overrides as a small REST
+  API. Reads and writes round-trip through `<configDir>` atomically; a
+  PUT followed by GET observes the write. Auth: when `authToken` is set
+  every endpoint other than `/health` requires the bearer.
+
+behavioral_assertions:
+  endpoints:
+    # Liveness — no auth required.
+    - method: GET
+      path: /health
+      auth: none
+    # Pipeline + flow config (read).
+    - method: GET
+      path: /pipeline
+      auth: bearer
+    - method: GET
+      path: /flows
+      auth: bearer
+    - method: GET
+      path: /flows/:name
+      auth: bearer
+    # Pipeline + flow config (write — atomic, validated).
+    - method: PUT
+      path: /pipeline
+      auth: bearer
+    - method: PUT
+      path: /flows/:name
+      auth: bearer
+    # Per-role agent-model overrides (read + write).
+    - method: GET
+      path: /agent-models/:role
+      auth: bearer
+    - method: PUT
+      path: /agent-models/:role
+      auth: bearer
+    # Project + agent CRUD (command-bus passthrough).
+    - method: POST
+      path: /projects
+      auth: bearer
+      command: CreateProject
+    - method: PUT
+      path: /projects/:projectId
+      auth: bearer
+      command: UpdateProject
+    - method: DELETE
+      path: /projects/:projectId
+      auth: bearer
+      command: ArchiveProject
+    - method: POST
+      path: /agents
+      auth: bearer
+      command: CreateAgent
+    - method: PUT
+      path: /agents/:agentId
+      auth: bearer
+      command: UpdateAgent
+    - method: DELETE
+      path: /agents/:agentId
+      auth: bearer
+      command: DeleteAgent
+
+  invariants:
+    - GET after PUT observes the write.
+    - PUT body is validated before the file is replaced (atomic write).
+    - /health is the only endpoint exempt from bearer auth when `authToken` is set.
+    - Project / agent CRUD round-trips through the same CommandBus the orchestrator uses.
+
+notes: |
+  Routes live in hosts/manager-api/routes.ts; the dispatcher in
+  hosts/manager-api/main.ts assigns methods to paths and applies the
+  bearer-auth middleware. The atomic-write contract is enforced by
+  hosts/manager-api/atomic-write.ts.
+
+  The detailed unit-level parity is captured by
+  hosts/manager-api/routes.parity.test.ts (the *.parity.test.ts file is
+  the source-of-truth for per-endpoint contracts); this scenario asserts
+  the SHAPE of the surface — that the right paths and verbs are exposed
+  at the right auth tier — so a structural regression (someone drops
+  /flows or moves it under /api/flows) lights up parity-smoke.

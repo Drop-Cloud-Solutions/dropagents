@@ -1,0 +1,45 @@
+# Parity fixture — task_type: scaffold-repo
+#
+# See implement.yaml for the fixture-format contract.
+
+task_type: scaffold-repo
+reference_sha: b50868495fb778dc3058e15c2501cba410a59dac
+status: green
+owner: track-7c
+
+description: >
+  Brand-new repository bootstrap. v1 expects the repo-scaffolder to
+  initialise package.json/tsconfig/.gitignore/README and an initial CI
+  workflow, then the committer pushes the first commit and (optionally)
+  opens the repo via the gh CLI.
+
+expected_events:
+  - PlanApproved
+  - TaskCreated
+  - TaskApproved
+  - AgentStarted     # repo-scaffolder
+  - AgentFinished    # repo-scaffolder
+  - AgentStarted     # reviewer
+  - AgentFinished    # reviewer
+  - AgentStarted     # committer
+  - AgentFinished    # committer
+  - TaskFinished
+
+retained: true
+notes: |
+  Distinct from scaffold (which adds modules to an existing repo).
+  scaffold-repo is a one-shot per project — parity is primarily about
+  the initial-commit semantics, not ongoing churn. The parity-smoke
+  harness drives this fixture via `runScaffoldRepoRoundTrip` in
+  `scripts/parity-smoke.ts` (AP-IFW-009). The round-trip runs in a
+  deterministic dry-run that simulates every `gh` call locally — so
+  `npm run parity:smoke` exits 0 in CI without `gh` auth — and pins
+  the target GitHub org to a sandbox (`DropCloud-Sandbox` by default,
+  overridable via `PARITY_SMOKE_GITHUB_SANDBOX_ORG`). Production-shaped
+  org names (matching the production org list or `prod|production`) are
+  rejected outright. Assertions cover repo creation, files_to_create
+  population, a SHA-shaped initial commit with the canonical message,
+  the `main` default branch, the per-task agent-stream and sidecar
+  markers, and the teardown invariant (the sandbox repo is deleted
+  even on failure — the `gh repo delete` entry in the captured-commands
+  log is the load-bearing record).

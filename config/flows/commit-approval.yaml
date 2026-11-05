@@ -1,0 +1,16 @@
+# AP-IFG-004 — lifecycle flow: commit-approval
+#
+# Gates a developer agent's diff for operator review before commit. The
+# host bridges the developer's AgentFinished into a TaskCreated for this
+# flow; start_mode: auto lets the engine enter the parking step without
+# a second operator approval. The `commit-approval` stage parks the task
+# (TaskParked reason=wait-action) until the operator dispatches
+# ResumeTask, at which point on_success fires and CommitReady lands on
+# the bus for Track D to consume.
+on: TaskCreated
+start_mode: auto
+steps:
+  - id: gate
+    agent: commit-approval
+    model: none
+    on_success: emit:CommitReady

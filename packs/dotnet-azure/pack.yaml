@@ -1,0 +1,54 @@
+# .NET / NuGet / Azure stack pack.
+#
+# Switch it on with `packs: [dotnet-azure]` in pipeline.yaml (normally
+# your profile's). Without it the pipeline is stack-neutral: none of the
+# task types below exist, the decomposer cannot emit them, and the board
+# does not offer them.
+#
+# What it adds:
+#   task types  deploy-nuget, bump-package-reference, deploy-azure,
+#               deploy-verify, diagnose-azure, review-azure (+ the
+#               deploy-ready lifecycle flow)
+#   personas    publisher, deployer, deploy-verifier, azure-diagnostician,
+#               azure-reviewer
+#   scanners    the NuGet package graph for the design agents, and the
+#               C#/Razor reference checks run on every decomposition
+#               (packs/dotnet-azure/code)
+id: dotnet-azure
+label: ".NET / NuGet / Azure"
+description: >-
+  NuGet publishing and cross-repo package bumps, Azure deployment,
+  verification, diagnosis and review, and C#-aware decomposition checks.
+archetypes:
+  - id: deploy-only
+    label: "Deploy-only — run a deploy script"
+  - id: review-azure
+    label: "Review Azure — read-only audit"
+
+# Role traits core cannot know, because core must not name a stack's roles.
+#
+#   report   this role's recorded step summary IS the operator-readable
+#            report — what the Implement button decomposes and the
+#            follow-up thread renders.
+#   outcome  this role's persona mandates a terminal verdict LINE. Markers
+#            are plain strings; the pipeline compiles them into the same
+#            patterns it applies to its own roles. `require_verdict` makes
+#            an output with NO recognised verdict a failure rather than an
+#            unknown-treated-as-success — field case T-DOA-001/002, where a
+#            deploy task and its verify task both reported success while
+#            nothing had reached Azure.
+roles:
+  - id: deployer
+    outcome:
+      success: ["DEPLOYED"]
+      failure: ["DEPLOY FAILED"]
+      require_verdict: true
+  - id: deploy-verifier
+    outcome:
+      success: ["VERIFIED:"]
+      failure: ["STALE:", "INCONCLUSIVE:"]
+      require_verdict: true
+  - id: azure-reviewer
+    report: true
+  - id: azure-diagnostician
+    report: true

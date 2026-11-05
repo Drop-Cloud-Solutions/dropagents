@@ -1,0 +1,39 @@
+# Task type: update-project-context
+#
+# Revises the project's architecture context (`projects.context_md`) — the
+# block handed to the planner, decomposer and architect on every run. The
+# architect asks for one of these when a design changes the shape of the
+# project rather than the contents of one repo; the decomposer emits it as
+# the last task in that plan.
+#
+# One agent step, and no committer / merge steps after it: nothing here
+# lands in a git repo. The write happens off the agent's AgentFinished —
+# the orchestrator parses the PROJECT_CONTEXT_UPDATE block and dispatches
+# the `UpdateProjectContext` command, which is where the truncation guard
+# lives. `PROJECT_CONTEXT_UNCHANGED` finishes the task without writing.
+#
+# `approval: required` is the operator's gate. The context is
+# operator-authored prose and the write REPLACES it in full, so no agent
+# gets to start rewriting it because a plan said so — the same posture
+# `implement.yaml` and `document.yaml` take before an agent touches a repo.
+# The gate is on the run, not on the result: once approved the agent's new
+# text is applied. Reverting is an edit in the board or manager UI.
+on: TaskApproved
+when: task.type == "update-project-context"
+start_mode: auto
+# What this flow is as a task type (flow id == task type). The single
+# source for the per-type facts the pipeline used to hardcode in five
+# lists - see core/flow/task-types.ts.
+task_type:
+  label: "Update project context"
+  decomposable: true
+  writes_code: false
+  worktree: task
+  add_task: false
+steps:
+  - id: write-context
+    agent: project-context-writer
+    model: none
+    approval: required
+    on_success: emit:TaskFinished
+    on_failure: emit:TaskFailed

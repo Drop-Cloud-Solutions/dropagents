@@ -1,0 +1,51 @@
+# bump-package-reference — update consuming repos to a freshly published
+# NuGet package version.
+#
+# The decomposer has always been allowed to emit this task type (it's in
+# its type enum, and the workspace convention says every consumer bumps
+# its PackageReference after a publish), but no flow existed for it —
+# the engine logged "unknown flow id" and the task sat silently
+# unstartable forever (field case: L-LNCB-006).
+#
+# Deliberately lean: a version bump is mechanical, so there is no
+# reviewer/tester leg. The developer edits the PackageReference
+# version(s) and builds to verify restore, the operator confirms the
+# diff, the committer lands it, and the task parks until the PR merges.
+
+on: TaskApproved
+when: task.type == "bump-package-reference"
+start_mode: auto
+# What this flow is as a task type (flow id == task type). The single
+# source for the per-type facts the pipeline used to hardcode in five
+# lists - see core/flow/task-types.ts.
+task_type:
+  label: "Bump package reference"
+  decomposable: true
+  writes_code: true
+  worktree: task
+  add_task: true
+steps:
+  - id: develop
+    agent: developer
+    model: none
+    # Operator must explicitly Approve before the developer runs
+    # (mirrors implement.yaml); a pre-approved task passes straight
+    # through this gate when its dependencies finish.
+    approval: required
+    on_success: human-review
+  - id: human-review
+    # Pre-commit operator gate: the version-bump diff is small — one
+    # look confirms the right packages moved to the right version.
+    agent: worktree-diff-review
+    model: none
+    on_success: commit
+    on_failure: develop
+  - id: commit
+    agent: committer
+    model: none
+    on_success: merge
+    on_failure: develop
+  - id: merge
+    agent: merge-auto
+    model: none
+    on_success: emit:TaskFinished

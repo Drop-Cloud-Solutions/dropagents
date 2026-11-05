@@ -1,0 +1,27 @@
+on: TaskApproved
+when: "task.type == \"deploy-verify\""
+# What this flow is as a task type (flow id == task type). The single
+# source for the per-type facts the pipeline used to hardcode in five
+# lists - see core/flow/task-types.ts.
+task_type:
+  label: "Verify deployment"
+  decomposable: true
+  writes_code: false
+  worktree: shared-deploy
+  add_task: true
+steps:
+- id: verify
+  agent: deploy-verifier
+  model: none
+  # Operator must explicitly Approve before the verifier runs (field
+  # case: a skipped deployment released this task's dependency gate and
+  # the verifier spawned immediately — verifying a deployment that never
+  # happened). With the gate it parks at approval like implement.yaml's
+  # first step; Skip remains a real skip.
+  approval: required
+  on_success: "emit:TaskFinished"
+  # emit:TaskFailed, not the old emit:DeployVerifyFailed - that event had
+  # NO subscriber anywhere in the codebase, so a verifier reporting
+  # STALE:/INCONCLUSIVE: routed into the void and the task sat silent.
+  on_failure: "emit:TaskFailed"
+start_mode: auto

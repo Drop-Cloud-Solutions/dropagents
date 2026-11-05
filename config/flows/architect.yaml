@@ -1,0 +1,31 @@
+on: TaskApproved
+when: "task.type == \"architect\""
+steps:
+- id: design
+  agent: architect
+  model: none
+  on_success: review
+  on_failure: "emit:TaskFailed"
+  approval: required
+- id: review
+  agent: reviewer
+  model: none
+  on_success: human-review
+  # Rejection returns to the design step with the feedback threaded on,
+  # instead of failing the task outright.
+  on_failure: design
+- id: human-review
+  agent: worktree-diff-review
+  model: none
+  on_success: commit
+  on_failure: design
+- id: commit
+  agent: committer
+  model: none
+  on_success: merge
+  on_failure: design
+- id: merge
+  agent: merge-auto
+  model: none
+  on_success: "emit:TaskFinished"
+start_mode: auto

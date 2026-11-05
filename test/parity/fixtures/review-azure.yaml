@@ -1,0 +1,39 @@
+# Parity fixture — task_type: review-azure
+#
+# See implement.yaml for the fixture-format contract.
+
+task_type: review-azure
+reference_sha: b50868495fb778dc3058e15c2501cba410a59dac
+status: green
+owner: track-7b
+
+description: >
+  Read-only audit of Azure resources backing a project. v1 invokes the
+  reviewer agent with the project's azure_scope metadata; the agent
+  uses the Azure MCP server to inspect state without mutating it.
+
+expected_events:
+  - PlanApproved
+  - TaskCreated
+  - TaskApproved
+  - ReviewRequested
+  - AgentStarted     # reviewer
+  - AgentFinished    # reviewer
+  - ReviewApproved   # or ReviewRejected on failure
+  - TaskFinished
+
+retained: true
+notes: |
+  Like review-codebase but the scope is Azure infrastructure rather
+  than source. Parity requires the same event shape so the board's
+  review-card renderer can stay task_type-agnostic. The parity-smoke
+  harness drives this fixture via `runReviewAzureRoundTrip` in
+  `scripts/parity-smoke.ts` (AP-IFW-008); the round-trip reuses Track 5's
+  `PARITY_SMOKE_AZURE_SCOPE` resolution to pin a sandbox subscription,
+  asserts the dispatched role is `azure-reviewer`, that the canonical
+  allowed_tools pair (Bash/Read, no Write/Edit/MultiEdit) is intact,
+  that every captured Azure query carries the pinned `--subscription`
+  arg (the "never queried outside scope" invariant), that the reviewer's
+  findings carry the canonical `## Findings` and `## Suggested changes`
+  sections, and that no mutating role / artefact slipped through (the
+  "halted at the wait-action gate" invariant).

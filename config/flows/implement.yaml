@@ -1,0 +1,92 @@
+# AP-IFW-002 — retained flow: implement
+#
+# Four-role developer chain for net-new code. Mirrors v1's implement
+# pipeline (parity fixture: test/parity/fixtures/implement.yaml). The
+# clarification path is universal: any of the four agents can emit
+# AGENT_QUESTION and the engine parks the task without an explicit
+# on_question target.
+#
+# AP-IFG-003 — start_mode derivation
+#   v1 task type: implement (TYPE_PIPELINES["implement"] = CLASSIC)
+#   v1 stages:    dev → review → test → commit → context-update
+#   start_mode:   auto — first stage `dev` runs without an operator gate.
+#                 The operator approval point in v1 lives at the `commit`
+#                 stage (ready_to_commit gate), not before `dev`.
+
+on: TaskApproved
+when: task.type == "implement"
+start_mode: auto
+# What this flow is as a task type (flow id == task type). The single
+# source for the per-type facts the pipeline used to hardcode in five
+# lists - see core/flow/task-types.ts.
+task_type:
+  label: "Implement (develop → review → test → commit)"
+  decomposable: true
+  writes_code: true
+  worktree: task
+  add_task: true
+  chat_proposable: true
+  synonyms: [feature, plan, planner, fix, bug]
+steps:
+  - id: develop
+    agent: developer
+    model: none
+    # Operator must explicitly Approve before the developer agent runs.
+    # Without this gate the first step fires the moment the task is
+    # created and the operator never sees an Approve/Skip choice — the
+    # card jumps straight from "decomposer just made me" to "agent in
+    # flight" with no intervening decision.
+    approval: required
+    on_success: review
+  - id: review
+    agent: reviewer
+    model: none
+    on_success: test
+    # Reviewer rejection routes back to the developer with the
+    # reviewer's feedback threaded onto the next StartAgent payload.
+    # The engine caps the develop re-entries at MAX_DEVELOP_ATTEMPTS
+    # (3 by default); past that the task is failed for human review
+    # instead of looping indefinitely.
+    on_failure: develop
+  - id: test
+    agent: tester
+    model: none
+    on_success: human-review
+    # Tester failure also routes back to develop — the dev agent
+    # adjusts the implementation, then re-enters review + test.
+    on_failure: develop
+  - id: human-review
+    # `worktree-diff-review` parks the task without firing any agent
+    # — the operator inspects the developer's worktree diff on the
+    # board, then either Approves (advances to `commit`) or rejects
+    # with required feedback (routes back to `develop` with the
+    # operator's note threaded as rejectFeedback). This gate sits
+    # AFTER the automated reviewer + tester so the operator only sees
+    # changes that already pass the agent chain's quality bar.
+    agent: worktree-diff-review
+    model: none
+    on_success: commit
+    on_failure: develop
+  - id: commit
+    agent: committer
+    # `committer` is a real Claude agent (see agents/committer.CLAUDE.md):
+    # it inspects `git status`, stages with `git add <file>`, writes a
+    # commit message from the task title + diff, and reports the commit
+    # hash. The orchestrator's post-commit hook (runPostCommitHook in
+    # hosts/orchestrator/task-worktrees.ts) then pushes the branch and
+    # opens a PR via `gh pr create`, storing the resulting URL on
+    # `task_worktrees.pr_url`.
+    model: none
+    on_success: merge
+  - id: merge
+    # `merge-auto` parks the task in the same wait-merged state, then the
+    # orchestrator merges the PR automatically once the post-commit hook
+    # has opened it (`MergeTaskPr` → `gh pr merge` → resume →
+    # emit:TaskFinished). The operator's quality gate is the
+    # `human-review` step above — once the diff is approved there, commit
+    # AND merge run hands-off. If the auto-merge can't find or merge the
+    # PR the task stays parked and the manual "Merge PR" button still
+    # works as the fallback.
+    agent: merge-auto
+    model: none
+    on_success: emit:TaskFinished

@@ -1,0 +1,45 @@
+# Parity fixture — task_type: implement
+#
+# Source-of-truth for the "implement" task type's observable behaviour
+# under v1 at the pinned REFERENCE_BASELINE SHA. The parity-smoke harness
+# enforces presence (the fixture must exist for every retained task type)
+# and validates `reference_sha` matches the repo's REFERENCE_BASELINE.
+#
+# Status ladder:
+#   pending — fixture authored, harness does not yet drive it end-to-end.
+#   green   — v2 reproduces v1's observable trace for this task type.
+#   red     — v2 diverges; an open parity defect blocks promotion.
+
+task_type: implement
+reference_sha: b50868495fb778dc3058e15c2501cba410a59dac
+status: green
+owner: track-1
+
+description: >
+  Standard four-role developer → reviewer → tester → committer pipeline
+  for net-new code changes. v1 routes the task through the dev/review/
+  test/commit chain and stamps the issue's claim row with the worker id.
+
+expected_events:
+  - PlanApproved
+  - TaskCreated
+  - TaskApproved
+  - AgentStarted     # developer
+  - AgentFinished    # developer
+  - AgentStarted     # reviewer
+  - AgentFinished    # reviewer
+  - AgentStarted     # tester
+  - AgentFinished    # tester
+  - AgentStarted     # committer
+  - AgentFinished    # committer
+  - TaskFinished
+
+retained: true
+notes: |
+  This is the most-trafficked task type. Drift here is high-blast-radius
+  — every parity defect found in implement-flow tasks gates promotion.
+
+  Exercised end-to-end by scripts/parity-smoke.ts's `implement` round-trip
+  (runImplementRoundTrip). Assertions cover the four observable surfaces
+  named in AP-IFW-001 Track 1: worktree diff shape, PR body, agent-stream
+  event sequence, and sidecar markers (pid + .killed + COMMIT_MARKER).

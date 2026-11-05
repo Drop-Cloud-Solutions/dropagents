@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Pipeline Manager</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="manager.css" />
+        <style>
+            /*
+             * AP-IFG-018 editor panels. Inline here rather than in manager.css
+             * so the editor surface ships with the markup that depends on it —
+             * the rest of the file is the YAML editor only, and the task brief
+             * scopes the change to index.html + manager.js.
+             */
+            .panel {
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
+                flex: 1;
+            }
+            /*
+             * The hidden attribute's UA default (display:none) loses to any
+             * author display rule — e.g. `.form-grid { display: grid }` kept
+             * hidden forms and the persona MD block visible. Reassert it
+             * globally so `el.hidden = true` always actually hides.
+             */
+            [hidden] {
+                display: none !important;
+            }
+            .panel[hidden] {
+                display: none;
+            }
+            .entity-list {
+                list-style: none;
+                margin: 0 0 8px;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+            .entity-list li.entity-row {
+                display: grid;
+                grid-template-columns: 1fr auto;
+                gap: 8px;
+                align-items: center;
+                padding: 8px 10px;
+                background: var(--surface-muted);
+                border: 1px solid var(--border);
+                border-radius: 4px;
+            }
+            .entity-list .entity-meta {
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+            }
+            .entity-list .entity-name {
+                font-weight: 600;
+                font-size: 13px;
+            }
+            .entity-list .entity-sub {
+                color: var(--text-muted);
+                font-size: 11px;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            }
+            .entity-list .entity-actions {
+                display: flex;
+                gap: 4px;
+            }
+            .entity-list .empty {
+                color: var(--text-muted);
+                font-style: italic;
+                padding: 12px 0;
+            }
+            .form-grid {
+                display: grid;
+                grid-template-columns: 120px 1fr;
+                gap: 6px 10px;
+                align-items: center;
+                margin: 0 0 10px;
+                padding: 10px;
+                background: var(--surface-muted);
+                border: 1px solid var(--border);
+                border-radius: 4px;
+            }
+            .form-grid label {
+                font-size: 12px;
+                color: var(--text-muted);
+            }
+            .form-grid input,
+            .form-grid select,
+            .form-grid textarea {
+                font: inherit;
+                font-size: 12px;
+                padding: 4px 6px;
+                border: 1px solid var(--border-strong);
+                border-radius: 4px;
+                background: var(--surface);
+                color: var(--text);
+            }
+            .form-grid textarea {
+                min-height: 60px;
+                resize: vertical;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            }
+            .form-actions {
+                grid-column: 1 / -1;
+                display: flex;
+                gap: 6px;
+                justify-content: flex-end;
+                margin-top: 4px;
+            }
+            /* Agents control-center rows (Option B, Phase 3). */
+            .entity-list .effective {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px 10px;
+                font-size: 11px;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+                color: var(--text);
+            }
+            .entity-list .effective .src {
+                color: var(--text-muted);
+                font-style: italic;
+            }
+            .entity-list li.entity-row.unconfigured {
+                border-style: dashed;
+            }
+            .entity-list li.entity-row.shadowed {
+                opacity: 0.55;
+                margin-left: 18px;
+            }
+            .field-hint {
+                grid-column: 2;
+                color: var(--text-muted);
+                font-size: 11px;
+            }
+            /* Settings panel (Phase 5). */
+            .entity-list li.section-row {
+                background: none;
+                border: none;
+                padding: 10px 2px 2px;
+                font-weight: 700;
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+                color: var(--text-muted);
+                display: block;
+            }
+            .entity-list .entity-actions input.setting-input {
+                font: inherit;
+                font-size: 12px;
+                padding: 4px 6px;
+                border: 1px solid var(--border-strong);
+                border-radius: 4px;
+                background: var(--surface);
+                color: var(--text);
+                width: 260px;
+            }
+            /*
+             * Project architecture context editor.
+             *
+             * What goes in here is a page of prose, not a form field, so
+             * the box gets the panel's remaining height and tracks the
+             * window instead of sitting at a fixed `rows` count. The
+             * flex chain it depends on is
+             * `.editor-pane > .panel > #project-context-editor`; every
+             * link already carries `min-height: 0`, without which a flex
+             * item refuses to shrink below its content and the textarea
+             * silently overflows the panel instead of fitting it.
+             *
+             * Styling mirrors board-ui's `.project-context__input` so the
+             * same file looks the same in both UIs.
+             */
+            #project-context-editor {
+                display: flex;
+                flex-direction: column;
+                flex: 1;
+                min-height: 0;
+                margin-top: 12px;
+            }
+            #project-context-editor h3 {
+                margin: 0 0 4px;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            #project-context-editor label {
+                font-size: 12px;
+                color: var(--text-muted);
+                margin-bottom: 4px;
+            }
+            #project-context-content {
+                flex: 1;
+                /* Floor, not a height: the flex line above is what makes
+                   it grow. This only keeps it usable when the viewport is
+                   short enough that `flex: 1` resolves to near-nothing. */
+                min-height: 240px;
+                width: 100%;
+                resize: vertical;
+                border: 1px solid var(--border-strong);
+                border-radius: 4px;
+                padding: 10px;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+                font-size: 12px;
+                line-height: 1.55;
+                color: var(--text);
+                background: var(--surface);
+                tab-size: 2;
+                -moz-tab-size: 2;
+            }
+            #project-context-content:focus {
+                outline: 2px solid var(--accent);
+                outline-offset: -2px;
+                border-color: var(--accent);
+            }
+            #project-context-content:disabled {
+                background: var(--surface-muted);
+                color: var(--text-muted);
+            }
+            button.danger {
+                color: var(--danger);
+                border-color: var(--danger);
+            }
+            button.danger:hover:not(:disabled) {
+                background: #fef2f2;
+            }
+        </style>
+    </head>
+    <body>
+        <header class="app-header">
+            <h1>Pipeline Manager</h1>
+            <!-- Which operator profile config is read from and saved to. -->
+            <span id="profile-label" class="profile-label"></span>
+            <div class="status">
+                <span id="status-dot" class="dot" aria-hidden="true"></span>
+                <span id="status-label">loading…</span>
+            </div>
+        </header>
+
+        <main class="layout">
+            <aside class="sidebar" aria-label="Manager navigation">
+                <h2>Files</h2>
+                <ul id="file-list" class="file-list" aria-live="polite"></ul>
+            </aside>
+
+            <section class="editor-pane" aria-label="Editor">
+                <!-- YAML editor (pipeline + flows). Unchanged from AP-IFW-002. -->
+                <div class="panel" id="panel-yaml" hidden>
+                    <header class="editor-header">
+                        <h2 id="editor-title">Select a file</h2>
+                        <div class="editor-actions">
+                            <!--
+                                Flow assistant: describe a change in plain
+                                language and the agent rewrites the editor
+                                contents. It never saves - the operator
+                                reviews and clicks Save.
+                            -->
+                            <button
+                                type="button"
+                                id="flow-chat-btn"
+                                title="Ask the flow assistant to rewrite this file"
+                                disabled
+                            >
+                                Chat
+                            </button>
+                            <button type="button" id="validate-btn" disabled>Validate</button>
+                            <button type="button" id="save-btn" data-action="save" disabled>
+                                Save
+                            </button>
+                            <!--
+                                Phase 4 operator "Apply": hot-reload config/flows
+                                into the RUNNING orchestrator (manager-api POST
+                                /reload → worker-api /api/reload-flows). Flows
+                                only — pipeline.yaml/.env still need a restart.
+                            -->
+                            <button
+                                type="button"
+                                id="apply-btn"
+                                title="Hot-reload config/flows into the running orchestrator"
+                                disabled
+                            >
+                                Apply to orchestrator
+                            </button>
+                        </div>
+                    </header>
+                    <!--
+                        Layer state of the open file: built-in default or your
+                        profile's copy, whether the default moved since you
+                        customised it, and the way back to it.
+                    -->
+                    <div id="yaml-profile-bar" class="profile-bar" hidden>
+                        <span id="yaml-profile-state" class="badge"></span>
+                        <button type="button" id="yaml-show-default-btn">Show default</button>
+                        <button type="button" id="yaml-ack-btn" hidden>Mark reviewed</button>
+                        <button type="button" id="yaml-reset-btn" hidden>Reset to default</button>
+                    </div>
+                    <textarea
+                        id="editor"
+                        spellcheck="false"
+                        autocomplete="off"
+                        autocorrect="off"
+                        autocapitalize="off"
+                        aria-label="YAML content"
+                        disabled
+                    ></textarea>
+                    <div id="message" class="message" role="status" aria-live="polite"></div>
+                </div>
+
+                <!-- Projects editor (AP-IFG-018). -->
+                <div class="panel" id="panel-projects" hidden>
+                    <header class="editor-header">
+                        <h2>Projects</h2>
+                        <div class="editor-actions">
+                            <button type="button" id="project-new-btn">New project</button>
+                            <button type="button" id="project-refresh-btn">Refresh</button>
+                        </div>
+                    </header>
+                    <form id="project-form" class="form-grid" hidden aria-label="Project form">
+                        <label for="project-id-input">Project id</label>
+                        <input id="project-id-input" type="text" placeholder="(auto)" />
+                        <label for="project-name-input">Name</label>
+                        <input id="project-name-input" type="text" required />
+                        <label for="project-desc-input">Description</label>
+                        <input id="project-desc-input" type="text" />
+                        <div class="form-actions">
+                            <button type="button" id="project-cancel-btn">Cancel</button>
+                            <button type="submit" id="project-submit-btn" data-action="save">
+                                Save
+                            </button>
+                        </div>
+                    </form>
+                    <ul id="project-list" class="entity-list" aria-live="polite"></ul>
+                    <div
+                        id="project-message"
+                        class="message"
+                        role="status"
+                        aria-live="polite"
+                    ></div>
+
+                    <!--
+                        Project architecture context. Stored as
+                        ProjectConfig.metadata.context_md in the ConfigStore
+                        and handed to the planner / decomposer / architect as
+                        the `# Project context` prompt block — the hint below
+                        says so, because an operator writing into a box with
+                        no stated reader cannot judge what belongs in it.
+                    -->
+                    <section id="project-context-editor" hidden>
+                        <h3 id="project-context-title">Architecture context</h3>
+                        <p class="field-hint">
+                            How this project's repos fit together, which systems it
+                            integrates, where the boundaries are. Handed to the
+                            planner, decomposer and architect as background — not
+                            to task agents, and never as instructions.
+                        </p>
+                        <label for="project-context-content">context.md</label>
+                        <textarea
+                            id="project-context-content"
+                            rows="18"
+                            spellcheck="false"
+                        ></textarea>
+                        <div class="form-actions">
+                            <button type="button" id="project-context-close-btn">
+                                Close
+                            </button>
+                            <button type="button" id="project-context-save-btn">
+                                Save context
+                            </button>
+                        </div>
+                        <div
+                            id="project-context-message"
+                            class="message"
+                            role="status"
+                            aria-live="polite"
+                        ></div>
+                    </section>
+                </div>
+
+                <!--
+                    Agents control center (Management UI Option B, Phase 3).
+                    One row per pipeline role showing the EFFECTIVE resolution
+                    (model / provider / persona) the orchestrator would use on
+                    the next spawn, plus the agent record that drives it. The
+                    former standalone "Model overrides" panel is folded in here:
+                    Agent.model IS the model override the pipeline consumes.
+                -->
+                <div class="panel" id="panel-agents" hidden>
+                    <header class="editor-header">
+                        <h2>Agents</h2>
+                        <div class="editor-actions">
+                            <button type="button" id="agent-new-btn">New agent</button>
+                            <button type="button" id="agent-refresh-btn">Refresh</button>
+                        </div>
+                    </header>
+                    <form id="agent-form" class="form-grid" hidden aria-label="Agent form">
+                        <label for="agent-id-input">Agent id</label>
+                        <input id="agent-id-input" type="text" placeholder="(auto)" />
+                        <label for="agent-name-input">Name</label>
+                        <input id="agent-name-input" type="text" required />
+                        <label for="agent-role-input">Role</label>
+                        <input
+                            id="agent-role-input"
+                            type="text"
+                            required
+                            placeholder="developer"
+                            list="agent-role-options"
+                        />
+                        <datalist id="agent-role-options"></datalist>
+                        <label for="agent-provider-input">Provider</label>
+                        <select id="agent-provider-input"></select>
+                        <label for="agent-model-input">Model</label>
+                        <input
+                            id="agent-model-input"
+                            type="text"
+                            placeholder="(inherit — role default from pipeline.yaml)"
+                        />
+                        <label for="agent-prompt-input" id="agent-prompt-label">Persona prompt</label>
+                        <textarea id="agent-prompt-input"></textarea>
+                        <span></span>
+                        <span class="field-hint" id="agent-prompt-hint"
+                            >Empty = use the agents/&lt;role&gt;.CLAUDE.md file default.</span
+                        >
+                        <div class="form-actions">
+                            <button type="button" id="agent-cancel-btn">Cancel</button>
+                            <button type="button" id="agent-md-btn">Edit MD file</button>
+                            <button type="submit" id="agent-submit-btn" data-action="save">
+                                Save
+                            </button>
+                        </div>
+                    </form>
+                    <!--
+                        Persona MD editor — the agents/<role>.CLAUDE.md file
+                        behind "(file default)". When the file doesn't exist
+                        yet, a purpose textbox + "Generate MD file" authors a
+                        draft (claude CLI on the API machine) into the editor
+                        for review; "Save MD file" writes it either way.
+                    -->
+                    <section
+                        id="agent-md-editor"
+                        class="form-grid"
+                        hidden
+                        aria-label="Agent persona file"
+                    >
+                        <label>Persona file</label>
+                        <span class="field-hint" id="agent-md-path"></span>
+                        <label>Layer</label>
+                        <div id="agent-md-profile-bar" class="profile-bar" hidden>
+                            <span id="agent-md-state" class="badge"></span>
+                            <button type="button" id="agent-md-show-default-btn">Show default</button>
+                            <button type="button" id="agent-md-ack-btn" hidden>Mark reviewed</button>
+                            <button type="button" id="agent-md-reset-btn" hidden>Reset to default</button>
+                        </div>
+                        <div id="agent-md-generate-row" style="display: none">
+                            <label for="agent-md-purpose" id="agent-md-purpose-label"
+                                >Purpose &amp; responsibilities</label
+                            >
+                            <textarea
+                                id="agent-md-purpose"
+                                placeholder="Describe what this agent is for, what it receives, and what it must produce…"
+                            ></textarea>
+                            <div class="form-actions">
+                                <button type="button" id="agent-md-generate-btn">
+                                    Generate MD file
+                                </button>
+                            </div>
+                        </div>
+                        <label for="agent-md-content">File content</label>
+                        <textarea id="agent-md-content" rows="18" spellcheck="false"></textarea>
+                        <div class="form-actions">
+                            <button type="button" id="agent-md-close-btn">Close</button>
+                            <button type="button" id="agent-md-save-btn">Save MD file</button>
+                        </div>
+                        <div
+                            id="agent-md-message"
+                            class="message"
+                            role="status"
+                            aria-live="polite"
+                            style="grid-column: 1 / -1"
+                        ></div>
+                    </section>
+                    <ul id="agent-list" class="entity-list" aria-live="polite"></ul>
+                    <!--
+                        Gates: engine step kinds that appear in flow YAMLs
+                        under `agent:` but are NOT agents — no persona file,
+                        no model, no CLI spawn. Listed read-only so the flow
+                        YAMLs and this panel visibly reconcile ("why isn't
+                        wait-merged in the agent list?"). Static content:
+                        the catalog is fixed at build time in
+                        core/flow/types.ts (FLOW_STEP_KINDS).
+                    -->
+                    <section class="gates-section" aria-label="Gates and pass-through steps">
+                        <h3>Gates &amp; pass-through steps</h3>
+                        <p class="gates-intro">
+                            These appear as <code>agent:</code> values in flow YAMLs but are
+                            engine-internal — nothing is spawned, so they have no persona,
+                            model, or provider to configure.
+                        </p>
+                        <dl class="gates-list">
+                            <dt><code>wait-merged</code></dt>
+                            <dd>
+                                Parks until the operator clicks Merge PR (board or Telegram);
+                                the merge runs <code>gh pr merge</code> and resumes the flow.
+                            </dd>
+                            <dt><code>merge-auto</code></dt>
+                            <dd>
+                                Same park, no operator: the PR is merged automatically as soon
+                                as the post-commit hook has opened it. Swap it in for
+                                <code>wait-merged</code> in a flow to skip the merge approval.
+                                Manual Merge PR keeps working as a fallback.
+                            </dd>
+                            <dt><code>worktree-diff-review</code></dt>
+                            <dd>
+                                Pre-commit operator gate: parks for the diff-review modal;
+                                approve advances to commit, reject routes back to the developer.
+                            </dd>
+                            <dt><code>commit-auto</code></dt>
+                            <dd>
+                                Skips that pre-commit review: passes straight through to the
+                                commit step. Swap it in for <code>worktree-diff-review</code>
+                                to skip the commit approval.
+                            </dd>
+                            <dt><code>wait-action</code></dt>
+                            <dd>Generic operator park — Approve/Reject resumes it.</dd>
+                            <dt><code>commit-approval</code> / <code>merge-approval</code></dt>
+                            <dd>Lifecycle decision parks used by the staged flows.</dd>
+                            <dt><code>pr-ready</code> / <code>deploy-ready</code></dt>
+                            <dd>Pass-throughs that emit their lifecycle event and continue.</dd>
+                            <dt><code>run-script</code> / <code>verify</code> / <code>report-only</code></dt>
+                            <dd>Non-agent work: run a configured script / verify / report.</dd>
+                            <dt><code>merge</code> (alias <code>pr.merge</code>), <code>pr.open</code></dt>
+                            <dd>PR-gateway steps — open or merge the task's PR via the gateway.</dd>
+                        </dl>
+                    </section>
+                    <div class="message info" id="agent-footnote">
+                        Model and persona changes apply on the next agent spawn — no restart
+                        needed. A provider change also applies live, but only if that backend
+                        was available when the orchestrator started; switching to a newly
+                        configured backend needs an orchestrator restart. A flow step with an
+                        explicit <code>model:</code> still wins for that step.
+                    </div>
+                    <div
+                        id="agent-message"
+                        class="message"
+                        role="status"
+                        aria-live="polite"
+                    ></div>
+                </div>
+
+                <!--
+                    Settings panel (Management UI Phase 5). Curated runtime
+                    settings stored in the config store and overlaid onto the
+                    orchestrator's env at boot. Secrets are write-only: the
+                    API reports presence, never the value.
+                -->
+                <div class="panel" id="panel-settings" hidden>
+                    <header class="editor-header">
+                        <h2>Settings</h2>
+                        <div class="editor-actions">
+                            <button type="button" id="setting-refresh-btn">Refresh</button>
+                        </div>
+                    </header>
+                    <ul id="setting-list" class="entity-list" aria-live="polite"></ul>
+                    <div class="message info" id="setting-footnote"></div>
+                    <div
+                        id="setting-message"
+                        class="message"
+                        role="status"
+                        aria-live="polite"
+                    ></div>
+                </div>
+
+                <!--
+                  GitHub accounts. More than one GitHub identity, usable
+                  at the same time, for repositories one account cannot
+                  reach.
+
+                  An account names a `gh` config directory the operator
+                  ran `gh auth login` into - never a token. `gh` keeps
+                  the credential, so this panel, the config file it
+                  writes and the logs all hold a PATH and nothing more.
+
+                  Declared in pipeline.yaml under `github_accounts:`;
+                  the save lands in the operator PROFILE, because a
+                  config-dir path is machine-specific and has no business
+                  in a tracked repo file.
+                -->
+                <div class="panel" id="panel-github-accounts" hidden>
+                    <header class="editor-header">
+                        <h2>GitHub accounts</h2>
+                        <div class="editor-actions">
+                            <button type="button" id="gh-account-add-btn">Add account</button>
+                            <button type="button" id="gh-account-save-btn">Save</button>
+                            <button type="button" id="gh-account-refresh-btn">Refresh</button>
+                        </div>
+                    </header>
+                    <div class="message info" id="gh-account-footnote"></div>
+                    <ul id="gh-account-list" class="entity-list" aria-live="polite"></ul>
+                    <div
+                        id="gh-account-message"
+                        class="message"
+                        role="status"
+                        aria-live="polite"
+                    ></div>
+                </div>
+
+                <!-- Empty/landing state shown until the operator picks a sidebar entry. -->
+                <div class="panel" id="panel-empty">
+                    <div class="message info" style="margin-top: 16px">
+                        Select a file or configuration section in the sidebar.
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!--
+            Flow assistant modal. Owns its own thread; the reply rewrites the
+            YAML textarea behind it and nothing is persisted until the
+            operator clicks Save on the editor.
+        -->
+        <div id="flow-chat-backdrop" class="modal-backdrop" hidden>
+            <div
+                class="modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="flow-chat-title"
+            >
+                <header class="modal-header">
+                    <h2 id="flow-chat-title">Flow assistant</h2>
+                    <button type="button" id="flow-chat-close">Close</button>
+                </header>
+                <div id="flow-chat-thread" class="chat-thread" aria-live="polite"></div>
+                <form id="flow-chat-form" class="chat-composer">
+                    <textarea
+                        id="flow-chat-input"
+                        rows="3"
+                        spellcheck="false"
+                        aria-label="Ask the flow assistant"
+                        placeholder="e.g. add a reviewer step that sends work back to develop on reject"
+                    ></textarea>
+                    <button type="submit" id="flow-chat-send">Send</button>
+                </form>
+                <p class="chat-note">
+                    Replies rewrite the editor behind this dialog. Nothing is
+                    saved until you close this and click Save.
+                </p>
+            </div>
+        </div>
+
+        <script src="manager.js"></script>
+    </body>
+</html>

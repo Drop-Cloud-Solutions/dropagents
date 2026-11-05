@@ -1,0 +1,28 @@
+# AP-IFG-005 — lifecycle flow: merge
+#
+# Fires after an operator approves an open PR on the board. The host
+# bridges the approval into a TaskCreated for this flow; start_mode: auto
+# lets the engine enter the parking step without a second operator
+# approval gate. The `merge-approval` stage parks the task (TaskParked
+# reason=wait-action) until the operator dispatches ResumeTask, at which
+# point on_success fires and MergeReady lands on the bus carrying the
+# `prNumber` and `repoPath` fields the downstream git-adapter needs to
+# perform the actual branch merge.
+#
+# The `prNumber` and `repoPath` step params are placeholder values: hosts
+# template this flow per-task before passing the loaded FlowDefinition to
+# FlowEngine.start, overwriting them with the GitHub PR number and the
+# worker-local repo path for the specific task. When an earlier `pr.open`
+# step in the same flow has populated the engine's in-memory
+# `openedPrNumbers` cache, the engine falls back to the cached number if
+# `prNumber` is still 0 at resume time.
+on: TaskCreated
+start_mode: auto
+steps:
+  - id: gate
+    agent: merge-approval
+    model: none
+    params:
+      prNumber: 0
+      repoPath: ''
+    on_success: emit:MergeReady

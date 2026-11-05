@@ -1,0 +1,29 @@
+# Parity fixture — task_type: investigate
+#
+# See implement.yaml for the fixture-format contract.
+
+task_type: investigate
+reference_sha: b50868495fb778dc3058e15c2501cba410a59dac
+status: green
+owner: track-0
+
+description: >
+  Read-only research task. v1 invokes the investigator agent which
+  emits InvestigationCompleted carrying a Markdown report; the report
+  must contain a "Recommended action" header block. No code mutation,
+  no commit step.
+
+expected_events:
+  - PlanApproved
+  - TaskCreated
+  - TaskApproved
+  - AgentStarted             # investigator
+  - InvestigationCompleted   # payload.answer contains the report
+  - TaskFinished
+
+retained: true
+notes: |
+  Already exercised end-to-end by scripts/parity-smoke.ts's
+  investigation round-trip — the harness asserts the "# Recommended
+  action" header survives the bus round-trip through the persisted
+  InvestigationCompleted event payload.

@@ -1,0 +1,49 @@
+# swagger — OpenAPI/Swagger surface work (annotations, swagger.json
+# generation, endpoint documentation attributes).
+#
+# The decomposer's type enum has always included `swagger`, but no flow
+# existed for it — the engine logged "unknown flow id" and the task sat
+# silently unstartable (same gap as bump-package-reference). API-surface
+# work is code, so it runs the developer + reviewer chain; no tester leg
+# (swagger changes carry no behaviour to test beyond the build).
+
+on: TaskApproved
+when: task.type == "swagger"
+start_mode: auto
+# What this flow is as a task type (flow id == task type). The single
+# source for the per-type facts the pipeline used to hardcode in five
+# lists - see core/flow/task-types.ts.
+task_type:
+  label: "Swagger / API surface"
+  decomposable: true
+  writes_code: true
+  worktree: task
+  add_task: true
+steps:
+  - id: develop
+    agent: developer
+    model: none
+    # Operator must explicitly Approve before the developer runs
+    # (mirrors implement.yaml).
+    approval: required
+    on_success: review
+  - id: review
+    agent: reviewer
+    model: none
+    on_success: human-review
+    # Rejection returns to the producing step with the feedback.
+    on_failure: develop
+  - id: human-review
+    agent: worktree-diff-review
+    model: none
+    on_success: commit
+    on_failure: develop
+  - id: commit
+    agent: committer
+    model: none
+    on_success: merge
+    on_failure: develop
+  - id: merge
+    agent: merge-auto
+    model: none
+    on_success: emit:TaskFinished

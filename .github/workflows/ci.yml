@@ -1,0 +1,68 @@
+name: ci
+
+# This repo's default branch is `master`; the workflow only ever named
+# `main`, so it never fired once — every push and PR since it was added went
+# unverified. Both names are listed so a later rename cannot silently switch
+# CI off again.
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  verify:
+    name: lint + typecheck + test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          # Node 24 matches local development. The `npm ci` failures this
+          # workflow hit were NOT caused by the Node version though — see the
+          # npm pin below for the actual cause.
+          #
+          # Trade-off, stated plainly: `engines` still allows >=20, but CI no
+          # longer proves Node 20 works. Use a matrix (['20','24']) if that
+          # guarantee matters — each entry needs an npm whose lock format
+          # agrees with the committed lockfile.
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Pin npm to the version that wrote package-lock.json
+        # The deciding variable for `npm ci` is the npm PATCH version — not the
+        # OS, and not the Node major. For this dependency tree npm 11.6.2 and
+        # 11.19.0 write MUTUALLY INCOMPATIBLE lockfiles, and each rejects the
+        # other's with EUSAGE:
+        #
+        #   11.6.2  hoists @emnapi/* to 1.11.2 and nests 26
+        #           vitest/node_modules/@esbuild/*@0.28.2 entries.
+        #   11.19.0 nests @emnapi/{core,runtime}@1.10.0 under
+        #           @rolldown/binding-wasm32-wasi (which pins those exact
+        #           versions) and omits the nested @esbuild set.
+        #
+        # The committed lock is written by 11.19.0, so pin it here instead of
+        # inheriting whatever npm the runner image ships — a runner upgrade
+        # would otherwise silently break `npm ci` again, which is how this
+        # started. If you regenerate the lock, regenerate it with this version
+        # (or bump both together).
+        run: npm install -g npm@11.19.0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Parity smoke
+        run: npm run parity-smoke

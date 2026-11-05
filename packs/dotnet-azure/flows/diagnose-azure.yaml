@@ -1,0 +1,44 @@
+# diagnose-azure — live error/performance diagnostics against a test or
+# production environment (App Insights / Log Analytics KQL, metrics,
+# Service Bus depth). Counterpart of review-azure (configuration audits):
+# this one chases live symptoms.
+#
+# Deliberately NOT repo-bound: the fault may live in shared infrastructure
+# (identityserver, service bus) — the task runs rooted at the WORKSPACE
+# repos directory (read access to every clone for code correlation; see
+# resolveTaskRepoSpec's repo-less diagnose branch in
+# hosts/orchestrator/main.ts). Host these tasks in a shared "platform"
+# project so cross-cutting incidents don't land in a business project.
+#
+# Event shape mirrors review-azure/investigate: single read-only agent
+# step; the report is the deliverable and follow-up fixes are filed as
+# separate tasks in the owning project.
+
+on: TaskApproved
+when: task.type == "diagnose-azure"
+start_mode: auto
+# What this flow is as a task type (flow id == task type). The single
+# source for the per-type facts the pipeline used to hardcode in five
+# lists - see core/flow/task-types.ts.
+task_type:
+  label: "Diagnose Azure environment (live errors/performance)"
+  decomposable: false
+  writes_code: false
+  # No worktree: the symptom may belong to any repo or to shared
+  # infrastructure, so the agent runs rooted at the workspace repos
+  # directory with read access to every clone. It cannot write.
+  worktree: workspace-root
+  add_task: true
+  produces_report: true
+  # The chat assistant may propose this directly ("500s in prd", "stg is
+  # slow"). The synonyms are the words the model actually reaches for —
+  # without them `Type: diagnose` fell back to `implement` and filed code
+  # work for a live-environment question.
+  chat_proposable: true
+  synonyms: [diagnose, diagnosis, diagnostics]
+steps:
+  - id: diagnose
+    agent: azure-diagnostician
+    model: none
+    on_success: emit:TaskFinished
+    on_failure: emit:TaskFailed

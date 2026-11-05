@@ -1,0 +1,113 @@
+# Parity scenario — track 14: investigation followup Q&A
+#
+# Behavioural fixture: not a task-type round-trip. The contract here is
+# the conversational followup Q&A thread an operator can have with an
+# investigation: agent emits AgentQuestion → Telegram (or board)
+# clarification surface renders it → operator answers → ResumeTask
+# carries the answer back into the parked task's resumed agent step.
+# Either the resumed agent emits another AgentQuestion (recursive Q&A)
+# or it emits InvestigationCompleted and the task finishes.
+#
+# Loaded by scripts/parity-smoke.ts (scenarios-tracks round-trip).
+# Drift between the events declared here and the constants in
+# core/commands/index.ts surfaces as a red parity-smoke run.
+
+track: 14
+title: investigation followup Q&A thread round-trip
+reference_sha: b50868495fb778dc3058e15c2501cba410a59dac
+status: green
+owner: track-14
+retained: true
+
+description: >
+  Investigation tasks support a multi-turn followup Q&A: the investigator
+  parks on a clarification question (AgentQuestion / TaskParked), the
+  operator answers through Telegram (reply-to) or the board's followup
+  chip, and ResumeTask threads the answer back into the agent's resumed
+  step. The thread completes when the agent emits
+  InvestigationCompleted carrying the final markdown report.
+
+behavioral_assertions:
+  # Cross-checked against TaskParkingCommands + TaskParkingEvents in
+  # core/commands/index.ts.
+  parking_commands:
+    - ResumeTask
+  parking_events:
+    - TaskParked
+    - TaskResumed
+
+  # The vocabulary the Q&A round-trip rides on. The agent stream
+  # produces AgentQuestion; the engine parks the task with reason
+  # `clarification`; the operator's reply lands as ResumeTask with the
+  # answer string; the resumed step either re-asks (another
+  # AgentQuestion) or completes (InvestigationCompleted). Cross-checked
+  # against TelegramInboundEvents + Events in
+  # adapters/telegram/TelegramGateway.ts and core/commands/index.ts.
+  question_answer_events:
+    - AgentQuestion
+    - InvestigationCompleted
+
+  # Surfaces the operator answers through. Both correlate the reply
+  # back to the parked taskId — Telegram via the
+  # `(chatId, questionMessageId)` correlator
+  # (adapters/telegram/chat-clarify.ts), board via the taskId on the
+  # followup chip (hosts/board-ui/board.js renders the chip from the
+  # task card's `investigation_thread` + `followup_inflight` lineage).
+  answer_surfaces:
+    - telegram-reply
+    - board-followup-chip
+
+  invariants:
+    - >
+      `TaskParked.reason = 'clarification'` is the discriminator the
+      flow engine uses to decide whether ResumeTask re-runs the parked
+      agent (clarification) or chains through `on_success` (wait-*).
+    - >
+      The operator's `answer` string from ResumeTask is threaded onto
+      the resumed StartAgent's context as `humanAnswer`; the optional
+      `optionKey` (e.g. "A") is recorded on the TaskResumed event for
+      audit but not interpreted by the engine.
+    - >
+      Telegram correlation keys on `(chatId, questionMessageId)`; a
+      second question on the same taskId UPSERTS the correlator row so
+      only the most recent outstanding question resolves a reply.
+      Answering the older one is ambiguous and intentionally drops.
+    - >
+      `RESUME_ACTOR = 'telegram-chat-clarify'` is the actor recorded on
+      the TaskResumed event for chat-sourced answers. Board-sourced
+      answers carry the operator's id from the bearer-auth session.
+    - >
+      The InvestigationCompleted event payload's `answer` carries the
+      final markdown report verbatim; the body must contain a
+      "# Recommended action" header block for the report to be
+      operator-actionable. This is the load-bearing string the existing
+      investigate fixture asserts on (see
+      test/parity/fixtures/investigate.yaml).
+    - >
+      The board renders an investigation card with the followup chip
+      under the conversation thread (rendered from the task card's
+      `investigation_thread` array). While `followup_inflight` is true
+      the chip shows a spinner; once the InvestigationCompleted lands
+      the thread renders the report inline.
+
+notes: |
+  Unit-level tests for the followup Q&A are spread across:
+    - core/commands/resume-task.test.ts (ResumeTask command surface)
+    - adapters/telegram/chat-clarify.test.ts (correlator)
+    - adapters/telegram/TelegramGateway.test.ts (outbound AgentQuestion
+      records into the correlator)
+    - hosts/board-ui/web/board.task-cards.test.ts (followup chip)
+    - hosts/board-ui/investigation-routes.test.ts (board's
+      run/dismiss surfaces)
+
+  This scenario asserts the SHAPE of the conversation surface — that
+  TaskParked + TaskResumed + AgentQuestion + InvestigationCompleted are
+  all wired with the right discriminators and the two answer surfaces
+  are present — so a structural regression (someone renames the
+  `clarification` reason discriminator or drops the AgentQuestion
+  outbound subscriber) lights up parity-smoke.
+
+  This file is the source-of-truth for the followup contract. The
+  original investigate fixture
+  (test/parity/fixtures/investigate.yaml) covers the single-turn case;
+  this scenario extends it to the multi-turn Q&A thread.

@@ -1,0 +1,16 @@
+-- 034_project_context — the project's architecture context, on the project
+-- row itself.
+--
+-- Project configuration is WORKER state, not application source: two
+-- machines legitimately run different projects with different repos and
+-- different settings, so it does not belong in the git repo. This column
+-- (plus the existing `metadata` blob) makes the SQLite projection the one
+-- home for it — replacing `config/projects/<id>/project.json`, which only
+-- ever existed for projects created through the manager-api and so was
+-- absent for every project created from the board.
+--
+-- A dedicated column rather than another `metadata` key because this one
+-- is PROSE, measured in KB. `GET /api/projects` renders the sidebar list;
+-- folding a page of markdown per project into that blob would drag it all
+-- across the wire on every board load.
+ALTER TABLE projects ADD COLUMN context_md TEXT;

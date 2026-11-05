@@ -1,0 +1,35 @@
+# config/schedules.yaml
+#
+# Cron-driven flow triggers consumed by adapters/cron/scheduler.ts when the
+# orchestrator boots with `SCHEDULES_ENABLED=true`. Each entry fires on its
+# cron schedule and dispatches a CreateTask command, producing a TaskCreated
+# event with the entry's projectId/payload attached.
+#
+# Schema (YAML sequence of objects):
+#
+#   - name:       Human-readable identifier; used as the planId stem
+#                 (`cron:<name>`) and surfaced on the dispatched command.
+#     cron:       Standard 5-field cron expression
+#                   minute hour day-of-month month day-of-week
+#                 Supports `*`, lists (a,b), ranges (a-b), and steps
+#                 (* /n, a-b/n). Times are interpreted in UTC.
+#                 Day-of-month / day-of-week semantics: when both fields
+#                 are restricted, EITHER match fires (Vixie-cron rule).
+#     projectId:  Pipeline project the synthesised task belongs to.
+#     flow:       Flow identifier (matches a config/flows/*.yaml file).
+#     payload:    Arbitrary YAML scalar/map/sequence forwarded as the
+#                 `schedulePayload` field of the dispatched command.
+#
+# Invalid cron strings for an entry are logged and the entry is skipped;
+# the rest of the list is still registered.
+#
+# Sample entry (commented out — uncomment and edit to enable):
+#
+# - name: nightly-echo
+#   cron: "0 3 * * *"           # 03:00 UTC every day
+#   projectId: ai-pipeline
+#   flow: echo
+#   payload:
+#     reason: nightly smoke test
+
+[]

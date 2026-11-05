@@ -1,0 +1,40 @@
+# Plan-level verification gate (missed-file class, option C).
+#
+# The orchestrator APPENDS one task of this type to every code-writing
+# decomposition, depending on ALL other tasks in the plan — so it starts
+# only after every upstream has merged, in a fresh worktree cut from the
+# default branch that therefore contains the plan's ENTIRE landed work.
+# The tester builds the affected projects and runs their test suites:
+# a file the decomposer missed (an untouched consumer of a changed
+# contract) surfaces HERE as one failing task at plan level, instead of
+# as a broken build discovered after deploy.
+#
+# No commit/PR chain — the deliverable is the verification verdict, not
+# a code change. A failure parks the task failed:test with Retry on the
+# card; the operator adds the missing task (plan modal "+ Add task"),
+# lets it land, and retries this gate.
+#
+# start_mode: auto — triggers on TaskApproved, but the single step is
+# gated by `approval: required` (mirrors implement.yaml) so the operator
+# sees Approve/Skip before the tester spends tokens.
+
+on: TaskApproved
+when: task.type == "verify-plan"
+start_mode: auto
+# What this flow is as a task type (flow id == task type). The single
+# source for the per-type facts the pipeline used to hardcode in five
+# lists - see core/flow/task-types.ts.
+task_type:
+  label: "Verify plan (build + test merged work)"
+  decomposable: false
+  writes_code: false
+  worktree: task
+  add_task: true
+steps:
+  - id: test
+    agent: tester
+    # sonnet: build + full-suite run with failure triage needs more than
+    # a haiku-tier pure runner.
+    model: none
+    approval: required
+    on_success: emit:TaskFinished

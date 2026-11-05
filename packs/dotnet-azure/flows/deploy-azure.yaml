@@ -1,0 +1,37 @@
+# deploy-azure — run the repo's own Azure deploy scripts for the
+# environment named in the task.
+#
+# HISTORY: this flow shipped as a v1 skeleton around `run-script` /
+# `verify` primitives that required step params (scriptPath / cwd) it
+# never declared AND a ScriptRunner the v2 host never wired — every
+# deploy-azure task died at dispatch with "run-script step requires a
+# ScriptRunner, none configured", leaving the task stuck at status
+# 'approved' with only a Retry button (field case: T-DS-001, "deploy to
+# staging"). Rebuilt as an agent flow: the deployer agent locates and
+# runs the repo's Deploy/*.ps1 for the requested environment.
+#
+# Verification is deliberately NOT a step here — the decomposer emits a
+# separate deploy-verify task (deploy-verifier agent) that depends on
+# this one and unblocks on our TaskFinished.
+
+on: TaskApproved
+when: task.type == "deploy-azure"
+start_mode: auto
+# What this flow is as a task type (flow id == task type). The single
+# source for the per-type facts the pipeline used to hardcode in five
+# lists - see core/flow/task-types.ts.
+task_type:
+  label: "Deploy to Azure"
+  decomposable: true
+  writes_code: false
+  worktree: shared-deploy
+  add_task: true
+steps:
+  - id: deploy
+    agent: deployer
+    model: none
+    # A deploy touches live Azure resources — the operator explicitly
+    # confirms before the script runs, even on an auto-started flow.
+    approval: required
+    on_success: emit:TaskFinished
+    on_failure: emit:TaskFailed

@@ -1,0 +1,14 @@
+# AP-IFG-004 — lifecycle flow: pr-ready
+#
+# Fires after a committer agent has finished commit + push. The host
+# bridges the committer's AgentFinished into a TaskCreated for this
+# flow; start_mode: auto lets the engine chain straight through the
+# pass-through `pr-ready` stage to emit PrReady. Track D consumes that
+# event to drive the PR-creation workflow.
+on: TaskCreated
+start_mode: auto
+steps:
+  - id: signal
+    agent: pr-ready
+    model: none
+    on_success: emit:PrReady

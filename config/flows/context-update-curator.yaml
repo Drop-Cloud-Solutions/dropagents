@@ -1,0 +1,27 @@
+# AP-IFG-006 — lifecycle flow: context-update-curator
+#
+# Gates the curator agent's CLAUDE.md diff for operator accept/reject. The
+# host bridges the curator's AgentFinished into a TaskCreated for this
+# flow; start_mode: auto lets the engine enter the parking step without
+# a second operator approval. The `context-update-curator` stage parks
+# the task (TaskParked reason=wait-action) so the board can subscribe to
+# the parked event and render the CLAUDE.md diff inline. When the
+# operator accepts via ResumeTask, on_success fires and ContextUpdated
+# lands on the bus carrying the `prNumber` of the curator's CLAUDE.md
+# PR — Tracks D and F use that field to locate the PR downstream.
+#
+# The `prNumber` step param is a placeholder: hosts template this flow
+# per-task before passing the loaded FlowDefinition to FlowEngine.start,
+# overwriting it with the GitHub PR number for the specific task. When
+# an earlier `pr.open` step in the same flow has populated the engine's
+# in-memory `openedPrNumbers` cache, the engine falls back to the cached
+# number if `prNumber` is still 0 at resume time.
+on: TaskCreated
+start_mode: auto
+steps:
+  - id: gate
+    agent: context-update-curator
+    model: none
+    params:
+      prNumber: 0
+    on_success: emit:ContextUpdated

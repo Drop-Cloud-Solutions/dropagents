@@ -1,0 +1,69 @@
+# AP-IFG-003 — start_mode derivation
+#   v1 task type: document (TYPE_PIPELINES["document"])
+#   v1 stages:    dev → review → commit → context-update
+#                 (dev role = doc-writer, see TYPE_PIPELINES.agentRole.dev)
+#   start_mode:   auto — the flow triggers on TaskApproved, but the first
+#                 `write` step is gated by `approval: required` below, so the
+#                 operator must Approve before the doc-writer agent runs.
+
+on: TaskApproved
+when: task.type == "document"
+start_mode: auto
+# What this flow is as a task type (flow id == task type). The single
+# source for the per-type facts the pipeline used to hardcode in five
+# lists - see core/flow/task-types.ts.
+task_type:
+  label: "Document"
+  decomposable: true
+  writes_code: false
+  worktree: task
+  add_task: true
+  chat_proposable: true
+  synonyms: [docs, documentation]
+steps:
+  - id: write
+    agent: doc-writer
+    model: none
+    # Operator must explicitly Approve before the doc-writer runs (mirrors
+    # implement.yaml). Without this gate the first step fires the moment
+    # the task is decomposed and the operator never sees an Approve/Skip
+    # choice.
+    approval: required
+    on_success: review
+  - id: review
+    agent: reviewer
+    model: none
+    on_success: human-review
+    # Reviewer rejection routes back to the doc-writer with the review
+    # feedback threaded onto the next run (rejectFeedback), mirroring
+    # implement.yaml. Without this a "CHANGES REQUIRED" verdict hit the
+    # engine's default terminal and FAILED the task outright - the
+    # doc-writer never got a second pass (field case DF-BRBS-014).
+    on_failure: write
+  - id: human-review
+    # Pre-commit operator gate: parks the task on the worktree-diff
+    # review modal so the operator can read the doc-writer's prose
+    # before it lands. Reject routes back to write with the operator's
+    # note threaded as rejectFeedback.
+    agent: worktree-diff-review
+    model: none
+    on_success: commit
+    on_failure: write
+  - id: commit
+    agent: committer
+    # `committer` is a real Claude agent — see agents/committer.CLAUDE.md.
+    # `model: none` was a vestigial placeholder that claude CLI rejects;
+    # haiku is enough for the commit-message + staging reasoning.
+    model: none
+    on_success: merge
+    on_failure: write
+  - id: merge
+    # `merge-auto`: auto-merged by the orchestrator once the PR exists;
+    # manual "Merge PR" remains the fallback.
+    # Without this the committer's success would emit:TaskFinished
+    # directly and the task disappeared from the board / its plan
+    # moved to Completed while the PR was still unmerged on GitHub
+    # — the operator never got a chance to land the doc change.
+    agent: merge-auto
+    model: none
+    on_success: emit:TaskFinished

@@ -1,0 +1,37 @@
+# Parity fixture — task_type: review-codebase
+#
+# See implement.yaml for the fixture-format contract.
+
+task_type: review-codebase
+reference_sha: b50868495fb778dc3058e15c2501cba410a59dac
+status: green
+owner: track-7a
+
+description: >
+  Read-only audit of an existing codebase. v1 routes through the
+  reviewer agent only, emits ReviewRequested before the agent starts
+  and ReviewApproved/ReviewRejected at finish — there is no commit
+  step and no code is mutated.
+
+expected_events:
+  - PlanApproved
+  - TaskCreated
+  - TaskApproved
+  - ReviewRequested
+  - AgentStarted     # reviewer
+  - AgentFinished    # reviewer
+  - ReviewApproved   # or ReviewRejected on failure
+  - TaskFinished
+
+retained: true
+notes: |
+  v2's config/flows/code-review.yaml already publishes pre_emit:
+  ReviewRequested and emit:ReviewApproved/ReviewRejected — parity here
+  is about preserving those exact event names and the no-commit
+  invariant. The parity-smoke harness drives this fixture via
+  `runReviewCodebaseRoundTrip` in `scripts/parity-smoke.ts` (AP-IFW-007);
+  the round-trip asserts the dispatched agent role is `codebase-reviewer`,
+  that the canonical allowed_tools triplet (Read/Grep/Glob, no
+  Bash/Write/Edit) is intact, that the reviewer's findings landed in a
+  simulated Linear sink, and that no mutating role / artefact slipped
+  through (the "halted at the operator-action gate" invariant).

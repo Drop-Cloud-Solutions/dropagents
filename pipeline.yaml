@@ -1,0 +1,35 @@
+# dropagents — host bootstrap adapter selection (AP-VP6-001).
+#
+# This top-level file declares the two adapters whose default-fake silent
+# fall-through caused the early bootstrap regressions — the FakeAgentRunner
+# and the projection wire-up both mounted fakes with no warning when their
+# env vars were unset. Selection is *explicit*: the loader rejects any
+# value outside the declared set with a typed error, so a typo here cannot
+# silently route the live pipeline through fakes.
+#
+# Allowed values and defaults:
+#
+#   issue_tracker:   linear | fake   (default: fake)
+#   chat_gateway:    telegram | fake (default: fake)
+#
+# "fake" is the *safe* default — a fresh checkout boots without Linear or
+# Telegram credentials. Operators must opt in to a live adapter by editing
+# this file (or supplying an equivalent override) and providing the
+# corresponding env vars.
+#
+# Telegram permission model — strict deny-by-default:
+#
+#   TELEGRAM_ALLOWED_USER_IDS is the SOLE allow-list for inbound chat
+#   messages routed through the Telegram gateway. When the env var is
+#   unset OR empty, NO inbound user is permitted; every incoming update
+#   is silently dropped. There is no "anyone can talk to the bot" mode.
+#   To enable a user, add their numeric Telegram user id to a
+#   comma-separated list, e.g. TELEGRAM_ALLOWED_USER_IDS="12345,67890".
+#   Selecting chat_gateway=telegram without populating that env var is a
+#   no-op gateway: outbound notifications still go out, but inbound chat
+#   commands are denied. This is intentional — the chat-bot has full
+#   write authority over the orchestrator and must not accept input from
+#   unknown senders.
+
+issue_tracker: fake
+chat_gateway: fake

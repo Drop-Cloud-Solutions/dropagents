@@ -1,0 +1,32 @@
+# AP-IFG-003 — start_mode derivation
+#   v1 task type: (none — no `test-only` entry in v1 TYPE_PIPELINES)
+#   v1 stages:    closest analogue is the `test` sub-stage of CLASSIC
+#                 (dev → review → test → commit → context-update). v1
+#                 has no standalone "tester runs alone" task type; the
+#                 v2 `test-only` flow is the standalone form.
+#   start_mode:   auto — the v1 `test` sub-stage runs automatically after
+#                 review with no operator gate. The standalone v2 form
+#                 inherits that: tester runs without an operator gate.
+
+on: TaskApproved
+when: task.type == "test-only"
+start_mode: auto
+# What this flow is as a task type (flow id == task type). The single
+# source for the per-type facts the pipeline used to hardcode in five
+# lists - see core/flow/task-types.ts.
+task_type:
+  label: "Test only"
+  decomposable: false
+  writes_code: false
+  worktree: task
+  add_task: true
+steps:
+  - id: test
+    agent: tester
+    # Inherits the default. This step used to pin sonnet on the grounds
+    # that "the tester audits coverage and authors the missing tests,
+    # which needs more capability than a pure test run" — the default is
+    # now opus-5, so inheriting satisfies that reasoning rather than
+    # capping it.
+    model: none
+    on_success: emit:TaskFinished

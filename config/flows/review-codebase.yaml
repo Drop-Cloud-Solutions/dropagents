@@ -1,0 +1,38 @@
+# AP-IFW-002 — retained flow: review-codebase
+#
+# Read-only audit of an existing codebase. No commit step — the agent
+# produces a report and the flow terminates with ReviewApproved /
+# ReviewRejected. Mirrors the existing code-review.yaml shape but
+# routes through the dedicated codebase-reviewer agent (broader scope
+# than the per-task reviewer).
+#
+# AP-IFG-003 — start_mode derivation
+#   v1 task type: review-codebase (TYPE_PIPELINES["review-codebase"])
+#   v1 stages:    dev → report-only → wait-action
+#                 (dev role = codebase-reviewer)
+#   start_mode:   auto — first stage `dev` (codebase-reviewer) runs
+#                 without an operator gate. The Implement/Dismiss
+#                 operator gate is at the THIRD stage (`wait-action`),
+#                 not the first.
+
+on: TaskApproved
+when: task.type == "review-codebase"
+start_mode: auto
+# What this flow is as a task type (flow id == task type). The single
+# source for the per-type facts the pipeline used to hardcode in five
+# lists - see core/flow/task-types.ts.
+task_type:
+  label: "Review codebase"
+  decomposable: true
+  writes_code: false
+  worktree: task
+  add_task: true
+  produces_report: true
+steps:
+  - id: review
+    agent: codebase-reviewer
+    model: none
+    params:
+      pre_emit: ReviewRequested
+    on_success: emit:ReviewApproved
+    on_failure: emit:ReviewRejected

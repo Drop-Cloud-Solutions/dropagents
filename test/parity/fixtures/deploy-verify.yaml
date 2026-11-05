@@ -1,0 +1,34 @@
+# Parity fixture — task_type: deploy-verify
+#
+# See implement.yaml for the fixture-format contract.
+
+task_type: deploy-verify
+reference_sha: b50868495fb778dc3058e15c2501cba410a59dac
+status: green
+owner: track-6
+
+description: >
+  Post-deploy health check, chained directly after deploy-azure; failure
+  here is what triggers the operator's rollback procedure. The verifier
+  agent asserts the live endpoint
+  responds 200 and the claim row's deployment_id matches the just-
+  shipped revision.
+
+expected_events:
+  - PlanApproved
+  - TaskCreated
+  - TaskApproved
+  - AgentStarted     # verifier
+  - AgentFinished    # verifier
+  - TaskFinished
+
+retained: true
+notes: |
+  Gated by the same azure_scope metadata as deploy-azure. A missing or
+  malformed azure_scope is a v1 fast-fail; v2 must preserve that. The
+  parity-smoke harness drives this fixture via `runDeployVerifyRoundTrip`
+  in `scripts/parity-smoke.ts` (AP-IFW-006); the round-trip asserts the
+  dispatched agent role is `deploy-verifier`, that the canonical
+  allowed_tools triplet (Bash/Read/Grep, no Write/Edit) is intact, that
+  a `VERIFIED:` sentinel was emitted, and that no mutating deploy
+  artefacts were written during the round-trip.

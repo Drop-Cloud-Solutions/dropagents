@@ -1,0 +1,57 @@
+# Task type: scaffold-repo
+#
+# Brand-new repository bootstrap. Distinct from `scaffold` (which adds
+# modules to an EXISTING repo): the repo-scaffolder agent creates the
+# GitHub repo, clones it, populates the requested files, makes the first
+# commit and pushes it directly to the default branch. Per
+# `agents/repo-scaffolder.CLAUDE.md`: "This is the only push. Do not
+# branch, do not open a PR — the repo is fresh and the first commit lands
+# directly on the default branch."
+#
+# ONE STEP, and that is not a simplification — it is the only shape that
+# can work. Every other code-touching flow runs its agents inside a
+# per-task git worktree cut from the target repo's default branch. A repo
+# that does not exist yet has no branch to cut from, so a scaffold-repo
+# task HAS no worktree.
+#
+# This flow used to carry the five-step shape copied from `scaffold.yaml`
+# — scaffold, review, human-review, commit, merge — while its own header
+# recorded that v1 had only the dev stage "because there's no worktree and
+# the agent pushes the initial commit itself". The YAML contradicted its
+# own documentation, and every step after the first was unreachable in
+# practice:
+#
+#   review        the reviewer reviews a worktree diff; there is none, so
+#                 it rubber-stamps an empty change
+#   human-review  parks on the diff modal, which answers
+#                 `404 {"error":"task or worktree not found"}` — the task
+#                 is then stuck with only Mark complete or Cancel
+#   commit        nothing to commit; the scaffolder already committed
+#   merge         no PR exists, and the persona forbids opening one
+#
+# Field case L-ADNS-001 (shop): repo created and pushed successfully,
+# task parked at human-review with a 404, no way forward.
+on: TaskApproved
+when: task.type == "scaffold-repo"
+start_mode: auto
+# What this flow is as a task type (flow id == task type). The single
+# source for the per-type facts the pipeline used to hardcode in five
+# lists - see core/flow/task-types.ts.
+task_type:
+  label: "Scaffold a new repository"
+  decomposable: true
+  writes_code: true
+  worktree: task
+  add_task: false
+steps:
+  - id: scaffold
+    agent: repo-scaffolder
+    model: none
+    # Operator gate before a brand-new GitHub repo is created — the one
+    # irreversible thing in this flow.
+    approval: required
+    on_success: emit:TaskFinished
+    # The scaffolder halts with ERROR rather than cleaning up a partial
+    # creation (it must never delete a repo it made), so a failure needs
+    # to reach the operator with Retry available.
+    on_failure: emit:TaskFailed

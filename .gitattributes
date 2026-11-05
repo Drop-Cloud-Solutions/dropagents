@@ -1,0 +1,29 @@
+# Files kept OUT of the public mirror.
+#
+# `git archive HEAD` honours `export-ignore`, and the public mirror is
+# built by `npx tsx scripts/public-export.ts`, which archives HEAD — so
+# anything marked here is in the private repo and not in the published
+# tree.
+#
+# Why these four: they are the machinery for publishing this repo FROM a
+# private upstream, which is meaningless to anyone who clones the public
+# mirror — there is no private tree on the other side to de-identify.
+#
+# And they are the one place that necessarily CONTAINS the identifiers
+# they ban: the maintainer's username and company email domain are
+# written out as match rules. Shipping those in one file lets anyone
+# reconstruct the work address that the GitHub-noreply commit identity
+# exists to keep off the public record. A de-identification guard that
+# publishes the identifiers is worse than no guard, so it stays private
+# and runs here, where the tree it protects actually is.
+#
+# Do not restate those rules in a comment anywhere that ships. The first
+# version of THIS comment quoted them verbatim, and the guard did not
+# catch it: a regex source escapes the identifier (a word-boundary
+# marker before it, a backslash inside the domain), which is exactly
+# what the guard's own word-boundary and literal-dot matching then fail
+# to see. Describe them; never spell them.
+scripts/_public-release.ts        export-ignore
+scripts/_public-release.test.ts   export-ignore
+scripts/public-export.ts          export-ignore
+scripts/public-export.test.ts     export-ignore

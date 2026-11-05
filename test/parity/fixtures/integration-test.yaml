@@ -1,0 +1,46 @@
+# Parity fixture — task_type: integration-test
+#
+# See implement.yaml for the fixture-format contract.
+
+task_type: integration-test
+reference_sha: b50868495fb778dc3058e15c2501cba410a59dac
+status: green
+owner: track-3
+
+description: >
+  Test-only task that exercises a real dependency (sqlite, an HTTP
+  server, etc.) rather than mocking it. v1 routes through the
+  tester-only flow (no developer) and uses the implement reviewer for
+  the test-plan review step before commit.
+
+expected_events:
+  - PlanApproved
+  - TaskCreated
+  - TaskApproved
+  - AgentStarted     # tester
+  - AgentFinished    # tester
+  - AgentStarted     # reviewer
+  - AgentFinished    # reviewer
+  - AgentStarted     # committer
+  - AgentFinished    # committer
+  - TaskFinished
+
+retained: true
+notes: |
+  Memory: integration tests must hit a real database, not mocks — a
+  prior incident in v1 had mocked tests pass while a prod migration
+  failed. The parity harness must preserve that constraint in v2.
+
+  Exercised end-to-end by scripts/parity-smoke.ts's `integration-test`
+  round-trip (runIntegrationTestRoundTrip). The harness probes Docker
+  reachability via `docker info` before driving the flow. Following
+  the established AzuriteFixture convention ("skipped, not failed" —
+  see test/integration/AzuriteFixture.ts), a missing daemon yields a
+  clean SKIP with a clear log line rather than a hard failure; CI
+  runners that mandate Docker set PARITY_SMOKE_REQUIRE_DOCKER=1 to
+  flip the skip into a hard fail. Either way, mocks are never
+  substituted — the "no mocked DBs" invariant is preserved.
+  Assertions (when Docker is reachable) cover the three observable
+  surfaces named in AP-IFW-003 Track 3: testcontainers lifecycle
+  (start, id capture, stop), agent-stream event sequence, and
+  sidecar markers (pid + .killed + COMMIT_MARKER).

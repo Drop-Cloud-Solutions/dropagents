@@ -1,0 +1,28 @@
+on: TaskApproved
+when: "task.type == \"deploy-nuget\""
+# What this flow is as a task type (flow id == task type). The single
+# source for the per-type facts the pipeline used to hardcode in five
+# lists - see core/flow/task-types.ts.
+task_type:
+  label: "Publish NuGet package"
+  decomposable: true
+  writes_code: false
+  worktree: task
+  add_task: true
+steps:
+- id: publish
+  agent: publisher
+  model: none
+  on_success: commit
+  on_failure: "emit:TaskFailed"
+  approval: required
+- id: commit
+  agent: committer
+  model: none
+  on_success: merge
+  on_failure: "emit:TaskFailed"
+- id: merge
+  agent: merge-auto
+  model: none
+  on_success: "emit:TaskFinished"
+start_mode: auto

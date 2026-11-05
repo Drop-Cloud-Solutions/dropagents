@@ -1,0 +1,89 @@
+# dropagents — static configuration root.
+#
+# This file is the single source of truth for which adapter implementation
+# fills each port, which model each agent role defaults to, and which flow
+# definition each task type maps to. The orchestrator host reads this at
+# boot; changes take effect on the next start.
+#
+# See REFERENCE_BASELINE (sibling file) for the pinned v1 commit this
+# configuration is consistent with.
+
+# Adapter selection — names match folders under adapters/.
+#
+# `issue_tracker` chooses the authoritative IssueTracker port impl. The
+# orchestrator's `issue-tracker-primary` subscriber routes lifecycle events
+# (PlanApproved / TaskCreated / TaskFinished / TaskSkipped) into whichever
+# adapter is selected here. Valid values:
+#
+#   linear  (default) — LinearTracker is primary.
+#   jira              — JiraTracker is primary (AP-IFW-015 / AP-NVP-042).
+#
+# Any other value is rejected at boot by the pipeline-config loader with
+# a clear error — a typo here cannot silently route writes into the void.
+issue_tracker: linear
+agent_runner: claude-cli
+source_control: git-cli
+chat_gateway: telegram
+
+# Shadow-mode tracker. Mirrors the primary's lifecycle writes into the
+# named system AFTER the authoritative write completes. Failures are
+# logged to shared/.cache/jira-shadow-diff.log (the path keeps its Jira-
+# named filename for back-compat with AP-NVP-027 deployments) and never
+# republish onto the bus, so a shadow outage cannot stall the engine.
+#
+# Valid values:
+#
+#   none    (default) — no shadow.
+#   jira              — Linear primary, Jira shadow (original AP-NVP-027 mode).
+#   linear            — Jira primary, Linear shadow (the AP-IFW-015 reverse).
+#
+# Must differ from `issue_tracker` (a tracker cannot shadow itself).
+issue_tracker_shadow: none
+
+# THE default model. One entry, and it applies to every agent role.
+#
+# Resolution chain (ClaudeCliRunner.resolveModel), highest first:
+#
+#   1. flow step `model:`        — every step is `none` (= inherit).
+#   2. Agents-panel record       — WHERE PER-ROLE OVERRIDES LIVE.
+#   3. default_models[<role>]    — deliberately empty apart from the default.
+#   4. default_models.developer  — this line. The global default.
+#   5. CLAUDE_MODEL_<ROLE> / CLAUDE_MODEL env vars.
+#
+# The `developer` key is how the runner names the global fallback (step 4);
+# it is not a developer-only setting. Any role without an Agents-panel
+# override resolves here.
+#
+# Do NOT add roles below to make one cheaper or stronger — that splits the
+# answer to "which model ran this?" across three files again. Set it on the
+# agent in the manager UI, which is step 2 and the single place to look.
+default_models:
+  developer: claude-opus-5
+
+# Default flow file (relative to config/flows/) per task type.
+default_flows:
+  scaffold: scaffold.yaml
+  code-review: code-review.yaml
+  document: document.yaml
+  test-only: test-only.yaml
+  echo: echo.yaml
+
+# Worktree root — git worktrees are created under this directory.
+# The v2/ suffix keeps v2 worktrees segregated from any v1 checkouts a
+# developer may have on the same machine.
+worktree_root: .pipeline-workspace/v2
+
+# ConfigStore backend selection. Mirrors the PIPELINE_STORE_* env vars —
+# anything set in the environment overlays the values declared here.
+#
+#   backend_kind  fs | azure | dual  (env: PIPELINE_STORE_BACKEND)
+#   tenant        tenant identifier   (env: PIPELINE_STORE_TENANT)
+#   azure_storage_account_url         (env: AZURE_STORAGE_ACCOUNT_URL)
+#   overflow_threshold_bytes          (env: PIPELINE_STORE_OVERFLOW_THRESHOLD_BYTES)
+#   overflow_container_name           (env: PIPELINE_STORE_OVERFLOW_CONTAINER)
+#   fs_root_path                      (yaml-only — defaults to process.cwd())
+#
+# Default is `fs` so a fresh checkout boots without Azure credentials. Flip
+# to `dual` during a cutover, then to `azure` once the mirror is trusted.
+config_store:
+  backend_kind: fs

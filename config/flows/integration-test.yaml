@@ -1,0 +1,74 @@
+# AP-IFW-003 — retained flow: integration-test
+#
+# Test-authoring chain that lands a real test in the repo so CI / the
+# operator can run it later. The tester writes the test file in the
+# worktree; the operator confirms the diff is what they expected; the
+# committer commits and the post-commit hook opens a PR; the operator
+# approves the diff; the PR then lands automatically (merge-auto).
+#
+# No reviewer / developer / context-update agents — the deliverable IS
+# the test, there's no production code change to evaluate, and the
+# `worktree-diff-review` step covers operator sign-off on the test
+# itself before commit.
+#
+# AP-IFG-003 — start_mode derivation
+#   v1 task type: integration-test (TYPE_PIPELINES["integration-test"] = CLASSIC)
+#   start_mode:   auto — the flow triggers on TaskApproved, but the first
+#                 `test` step is gated by `approval: required` below, so the
+#                 operator must Approve before the tester agent runs.
+
+on: TaskApproved
+when: task.type == "integration-test"
+start_mode: auto
+# What this flow is as a task type (flow id == task type). The single
+# source for the per-type facts the pipeline used to hardcode in five
+# lists - see core/flow/task-types.ts.
+task_type:
+  label: "Integration test"
+  decomposable: true
+  writes_code: true
+  worktree: task
+  add_task: true
+  chat_proposable: true
+  synonyms: [test, tests]
+steps:
+  - id: test
+    agent: tester
+    # sonnet (not haiku): the tester now audits coverage and authors the
+    # missing tests, which needs more capability than a pure test run.
+    model: none
+    # Operator must explicitly Approve before the tester runs (mirrors
+    # implement.yaml). Without this gate the first step fires the moment
+    # the task is decomposed and the operator never sees an Approve/Skip
+    # choice.
+    approval: required
+    on_success: human-review
+  - id: human-review
+    # Pre-commit operator gate: parks on the worktree-diff review modal
+    # so the operator can confirm the test exercises the right
+    # scenarios before it lands. Reject routes back to test with the
+    # operator's note threaded as rejectFeedback so the tester can
+    # adjust the assertions or coverage.
+    agent: worktree-diff-review
+    model: none
+    on_success: commit
+    on_failure: test
+  - id: commit
+    agent: committer
+    # `committer` is a real Claude agent — see agents/committer.CLAUDE.md.
+    # `model: none` is rejected by the CLI, so haiku is enough for the
+    # commit-message + staging reasoning.
+    model: none
+    on_success: merge
+    # Commit failure (no diff to commit, push refused, etc.) re-drives
+    # the tester so the operator can adjust and try again rather than
+    # leaving the task dead.
+    on_failure: test
+  - id: merge
+    # `merge-auto`: parked wait-merged, then the orchestrator merges the
+    # PR automatically once the post-commit hook opened it. The operator
+    # gate is the human-review step above; manual Merge PR remains the
+    # fallback if the auto-merge fails.
+    agent: merge-auto
+    model: none
+    on_success: emit:TaskFinished

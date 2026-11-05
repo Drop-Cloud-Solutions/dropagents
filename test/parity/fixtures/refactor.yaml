@@ -1,0 +1,39 @@
+# Parity fixture — task_type: refactor
+#
+# See implement.yaml for the fixture-format contract.
+
+task_type: refactor
+reference_sha: b50868495fb778dc3058e15c2501cba410a59dac
+status: green
+owner: track-2
+
+description: >
+  Behaviour-preserving code change. v1 reuses the implement pipeline's
+  four-role chain but expects the reviewer to enforce "no API surface
+  change" and the tester to run the full suite (not just the touched
+  files).
+
+expected_events:
+  - PlanApproved
+  - TaskCreated
+  - TaskApproved
+  - AgentStarted     # developer
+  - AgentFinished    # developer
+  - AgentStarted     # reviewer
+  - AgentFinished    # reviewer
+  - AgentStarted     # tester
+  - AgentFinished    # tester
+  - AgentStarted     # committer
+  - AgentFinished    # committer
+  - TaskFinished
+
+retained: true
+notes: |
+  Shares the implement flow shape; parity here is mostly about the
+  reviewer's stricter ruleset and the tester's full-suite invocation.
+
+  Exercised end-to-end by scripts/parity-smoke.ts's `refactor` round-trip
+  (runRefactorRoundTrip → runFourRoleRoundTrip with label="refactor").
+  Assertions cover the same four observable surfaces as the implement
+  round-trip: worktree diff shape, PR body, agent-stream event sequence,
+  and sidecar markers (pid + .killed + COMMIT_MARKER).
